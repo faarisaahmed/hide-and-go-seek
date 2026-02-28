@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hide and Go Seek</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
+
+<body>
+
+<div class="container">
+
+<h1>Hide and Go Seek</h1>
+
+<div id="menu">
+
+<input id="displayName" placeholder="Display Name">
+
+<button onclick="createRoom()">Create New Room</button>
+
+<hr>
+
+<input id="roomCodeInput" placeholder="Room Code">
+
+<button onclick="joinRoom()">Join Room</button>
+
+</div>
+
+<h2 id="roomCodeDisplay"></h2>
+
+<h3>Players</h3>
+<ul id="playerList"></ul>
+
+</div>
+
+<script src="main.js"></script>
+
+</body>
+</html>
