@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Room</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
+
+<body>
+
+<div class="container">
+    <button onclick="goHome()" class="home-btn">Home</button>
+
+<h2 id="roomCodeDisplay">Room</h2>
+
+<h3>Players</h3>
+<ul id="playerList"></ul>
+
+<button onclick="refreshRoom()">Refresh Players</button>
+
+</div>
+
+<script
+src="main.js">
+if (!localStorage.getItem("roomCode")) {
+    window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>

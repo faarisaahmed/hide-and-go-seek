@@ -1,0 +1,95 @@
+body {
+    font-family: 'Playfair Display', serif;
+    text-align: center;
+
+    /* Soft gradient background */
+    background: linear-gradient(135deg, #f0f4ff, #d6e4ff);
+
+    min-height: 100vh;
+    margin: 0;
+}
+
+/* Container */
+
+.container {
+    max-width: 450px;
+    margin: auto;
+    padding: 40px 20px;
+}
+
+/* Title */
+
+h1 {
+    font-size: 48px;
+    margin-bottom: 30px;
+}
+
+/* Inputs */
+
+input {
+    width: 90%;
+    padding: 14px;
+    margin: 10px 0;
+
+    border-radius: 12px;
+    border: 1px solid #ccc;
+
+    font-size: 16px;
+}
+
+/* Buttons */
+
+button {
+    width: 92%;
+    padding: 14px;
+
+    margin: 10px 0;
+
+    font-size: 18px;
+
+    border-radius: 14px;
+    border: none;
+
+    background: #4f7cff;
+    color: white;
+
+    cursor: pointer;
+
+    transition: 0.2s ease;
+}
+
+button:hover {
+    background: #6f97ff;
+    transform: scale(1.02);
+}
+
+/* Home Button Special Style */
+
+.home-btn {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+
+    width: auto;
+    padding: 8px 16px;
+
+    font-size: 14px;
+
+    background: #ff6b6b;
+}
+
+.home-btn:hover {
+    background: #ff8787;
+}
+
+/* Player list */
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    padding: 8px;
+    font-size: 18px;
+}
