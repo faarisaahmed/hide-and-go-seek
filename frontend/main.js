@@ -137,19 +137,20 @@ window.onload = function() {
 
     let path = window.location.pathname;
 
-    // If user is trying to open room page
     if (path.includes("room.html")) {
 
         let roomCode = localStorage.getItem("roomCode");
         let playerName = localStorage.getItem("playerName");
 
-        // If no room or username → force home
         if (!roomCode || !playerName) {
             window.location.href = "index.html";
             return;
         }
 
         refreshRoom();
+
+        // ⭐ Start chat auto-refresh loop
+        setInterval(refreshChat, 1500);
     }
 }
 
@@ -201,4 +202,48 @@ async function changeEmoji(emoji) {
     document.getElementById("emojiPicker").style.display = "none";
 
     refreshRoom();
+}
+
+async function refreshChat() {
+    let code = localStorage.getItem("roomCode");
+
+    let res = await fetch(backend + "/room/" + code);
+    let data = await res.json();
+
+    if (!data || !data.chat) return;
+
+    let box = document.getElementById("chatBox");
+
+    // ⭐ VERY IMPORTANT — clear old messages first
+    box.innerHTML = "";
+
+    data.chat.forEach(msg => {
+        let div = document.createElement("div");
+        div.innerText = msg.name + ": " + msg.message;
+        box.appendChild(div);
+    });
+
+    // Scroll to newest message
+    box.scrollTop = box.scrollHeight;
+}
+async function sendChat() {
+    let input = document.getElementById("chatInput");
+    let message = input.value.trim();
+
+    if (!message) return;
+
+    let code = localStorage.getItem("roomCode");
+    let name = localStorage.getItem("playerName");
+
+    await fetch(backend + "/send_chat", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            code: code,
+            name: name,
+            message: message
+        })
+    });
+
+    input.value = "";
 }
