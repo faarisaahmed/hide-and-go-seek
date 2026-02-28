@@ -93,3 +93,23 @@ li {
     padding: 8px;
     font-size: 18px;
 }
+
+.emoji-box {
+    background: white;
+    padding: 15px;
+    border-radius: 14px;
+    margin-top: 15px;
+}
+
+.emoji-option {
+    font-size: 28px;
+    padding: 8px;
+    cursor: pointer;
+    display: inline-block;
+}
+
+#messageBox {
+    color: red;
+    font-weight: bold;
+    margin-top: 10px;
+}

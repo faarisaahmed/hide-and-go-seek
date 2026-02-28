@@ -1,4 +1,5 @@
 const backend = "http://localhost:5000";
+const EMOJIS = ["😀","😃","😄","😁","😆","😊","🙂","🥲","😢","😎","🤠","🥳","😺","🐸"];
 
 // ------------------------
 // Navigation
@@ -116,7 +117,14 @@ function updatePlayerList(players) {
 
     players.forEach(p => {
         let li = document.createElement("li");
-        li.innerText = p;
+
+        li.innerText = p.emoji + " " + p.name;
+
+        if (p.name === localStorage.getItem("playerName")) {
+            li.style.cursor = "pointer";
+            li.onclick = showEmojiPicker;
+        }
+
         list.appendChild(li);
     });
 }
@@ -143,4 +151,54 @@ window.onload = function() {
 
         refreshRoom();
     }
+}
+
+function showEmojiPicker() {
+    let box = document.getElementById("emojiPicker");
+    box.style.display = "block";
+
+    box.innerHTML = "";
+
+    EMOJIS.forEach(e => {
+        let div = document.createElement("div");
+        div.className = "emoji-option";
+        div.innerText = e;
+
+        div.onclick = () => changeEmoji(e);
+
+        box.appendChild(div);
+    });
+}
+
+async function changeEmoji(emoji) {
+
+    let code = localStorage.getItem("roomCode");
+    let name = localStorage.getItem("playerName");
+
+    let res = await fetch(backend + "/change_emoji", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            code: code,
+            name: name,
+            emoji: emoji
+        })
+    });
+
+    let data = await res.json();
+
+    let msgBox = document.getElementById("messageBox");
+
+    if (!data.success) {
+        msgBox.innerText = data.message || "Already taken!";
+        return;
+    }
+
+    msgBox.innerText = "";
+
+    document.getElementById("emojiPicker").style.display = "none";
+
+    refreshRoom();
 }
