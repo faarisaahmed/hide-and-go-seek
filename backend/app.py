@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from room_manager import create_room, join_room, get_room, add_chat_message
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -75,6 +75,17 @@ def change_emoji_route():
 
     return jsonify({"success": True})
 
+@app.route("/send_chat", methods=["POST"])
+def send_chat():
+    data = request.json
+
+    add_chat_message(
+        data.get("code"),
+        data.get("name"),
+        data.get("message")
+    )
+
+    return jsonify({"success": True})
 
 if __name__ == "__main__":
     app.run(debug=True)

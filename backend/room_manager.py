@@ -37,7 +37,8 @@ def create_room(display_name):
         "players": [{
             "name": display_name,
             "emoji": emoji
-        }]
+        }],
+        "chat": []
     }
 
     return code
@@ -67,3 +68,18 @@ def join_room(code, display_name):
 
 def get_room(code):
     return rooms.get(code)
+
+def add_chat_message(code, name, message):
+    if code not in rooms:
+        return False
+
+    rooms[code]["chat"].append({
+        "name": name,
+        "message": message
+    })
+
+    # Limit chat size (important for memory)
+    if len(rooms[code]["chat"]) > 50:
+        rooms[code]["chat"].pop(0)
+
+    return True
