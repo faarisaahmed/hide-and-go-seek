@@ -163,3 +163,36 @@ li {
     text-align: left;
     margin-bottom: 8px;
 }
+
+/* ===== Chat Collapse Arrow ===== */
+
+/* Chat collapse toggle */
+
+.chat-toggle {
+    text-align: center;
+    cursor: pointer;
+
+    padding: 6px;
+    font-size: 18px;
+
+    user-select: none;
+    color: #444;
+}
+
+.chat-toggle:hover {
+    color: #000;
+}
+
+/* Chat panel animation */
+
+.chat-panel {
+    max-height: 300px;
+    overflow: hidden;
+
+    transition: max-height 0.3s ease;
+}
+
+.chat-panel.collapsed {
+    max-height: 0;
+    padding: 0;
+}

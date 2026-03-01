@@ -25,11 +25,19 @@ href="{{ url_for('static', filename='style.css') }}">
 
 <div class="chat-container">
 
+<div class="chat-toggle" onclick="toggleChat()">
+    <span id="chatToggleIcon">▼</span>
+</div>
+
+<div id="chatPanel" class="chat-panel">
+
 <div id="chatBox" class="chat-box"></div>
 
 <input id="chatInput" placeholder="Type message...">
 
 <button onclick="sendChat()">Send</button>
+
+</div>
 
 </div>
 
