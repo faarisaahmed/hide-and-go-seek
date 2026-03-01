@@ -1,18 +1,19 @@
-const backend = "http://localhost:5000";
+const backend = "http://192.168.1.171:5000";
+
 const EMOJIS = ["😀","😃","😄","😁","😆","😊","🙂","🥲","😢","😎","🤠","🥳","😺","🐸"];
 
-// ------------------------
+// =========================
 // Navigation
-// ------------------------
+// =========================
 
 function goHome() {
     localStorage.removeItem("roomCode");
-    window.location.href = "index.html";
+    window.location.href = backend + "/";
 }
 
-// ------------------------
-// Username validation
-// ------------------------
+// =========================
+// Username Validation
+// =========================
 
 function getDisplayName() {
     let name = document.getElementById("displayName").value;
@@ -25,9 +26,9 @@ function getDisplayName() {
     return name.trim();
 }
 
-// ------------------------
+// =========================
 // Room Creation
-// ------------------------
+// =========================
 
 async function createRoom() {
     let name = getDisplayName();
@@ -43,15 +44,20 @@ async function createRoom() {
 
     let data = await res.json();
 
+    if (!data.success) {
+        alert("Room creation failed");
+        return;
+    }
+
     localStorage.setItem("roomCode", data.room_code);
     localStorage.setItem("playerName", name);
 
-    window.location.href = "room.html";
+    window.location.href = backend + "/room_page";
 }
 
-// ------------------------
+// =========================
 // Join Room
-// ------------------------
+// =========================
 
 async function joinRoom() {
     let name = getDisplayName();
@@ -59,7 +65,6 @@ async function joinRoom() {
 
     let code = document.getElementById("roomCodeInput").value;
 
-    // Number-only code rule
     if (!/^[0-9]+$/.test(code)) {
         alert("Room code must be numbers only");
         return;
@@ -86,20 +91,22 @@ async function joinRoom() {
     localStorage.setItem("roomCode", code);
     localStorage.setItem("playerName", name);
 
-    window.location.href = "room.html";
+    window.location.href = backend + "/room_page";
 }
 
-// ------------------------
-// Room Display
-// ------------------------
+// =========================
+// Lobby Display
+// =========================
 
 async function refreshRoom() {
+
     let code = localStorage.getItem("roomCode");
+    let name = localStorage.getItem("playerName");
 
     if (!code) return;
 
     document.getElementById("roomCodeDisplay").innerText =
-        "Room Code: " + code;
+        "Room Code: " + code + " | Player: " + name;
 
     let res = await fetch(backend + "/room/" + code);
     let data = await res.json();
@@ -109,15 +116,21 @@ async function refreshRoom() {
     }
 }
 
-// ------------------------
+// =========================
+// Player List Rendering
+// =========================
 
 function updatePlayerList(players) {
+
     let list = document.getElementById("playerList");
+
+    if (!list) return;
+
     list.innerHTML = "";
 
     players.forEach(p => {
-        let li = document.createElement("li");
 
+        let li = document.createElement("li");
         li.innerText = p.emoji + " " + p.name;
 
         if (p.name === localStorage.getItem("playerName")) {
@@ -129,38 +142,45 @@ function updatePlayerList(players) {
     });
 }
 
-// ------------------------
-// Auto run on room page
-// ------------------------
+// =========================
+// Page Load Handler
+// =========================
 
 window.onload = function() {
 
     let path = window.location.pathname;
 
-    if (path.includes("room.html")) {
+    if (path.includes("room_page")) {
 
         let roomCode = localStorage.getItem("roomCode");
         let playerName = localStorage.getItem("playerName");
 
         if (!roomCode || !playerName) {
-            window.location.href = "index.html";
+            window.location.href = backend + "/";
             return;
         }
 
         refreshRoom();
 
-        // ⭐ Start chat auto-refresh loop
         setInterval(refreshChat, 1500);
+        setInterval(refreshRoom, 3000);
     }
 }
 
-function showEmojiPicker() {
-    let box = document.getElementById("emojiPicker");
-    box.style.display = "block";
+// =========================
+// Emoji System
+// =========================
 
+function showEmojiPicker() {
+
+    let box = document.getElementById("emojiPicker");
+    if (!box) return;
+
+    box.style.display = "block";
     box.innerHTML = "";
 
     EMOJIS.forEach(e => {
+
         let div = document.createElement("div");
         div.className = "emoji-option";
         div.innerText = e;
@@ -204,8 +224,15 @@ async function changeEmoji(emoji) {
     refreshRoom();
 }
 
+// =========================
+// Chat System
+// =========================
+
 async function refreshChat() {
+
     let code = localStorage.getItem("roomCode");
+
+    if (!code) return;
 
     let res = await fetch(backend + "/room/" + code);
     let data = await res.json();
@@ -214,22 +241,27 @@ async function refreshChat() {
 
     let box = document.getElementById("chatBox");
 
-    // ⭐ VERY IMPORTANT — clear old messages first
+    if (!box) return;
+
     box.innerHTML = "";
 
     data.chat.forEach(msg => {
+
         let div = document.createElement("div");
         div.innerText = msg.name + ": " + msg.message;
+
         box.appendChild(div);
     });
 
-    // Scroll to newest message
     box.scrollTop = box.scrollHeight;
 }
-async function sendChat() {
-    let input = document.getElementById("chatInput");
-    let message = input.value.trim();
 
+async function sendChat() {
+
+    let input = document.getElementById("chatInput");
+    if (!input) return;
+
+    let message = input.value.trim();
     if (!message) return;
 
     let code = localStorage.getItem("roomCode");

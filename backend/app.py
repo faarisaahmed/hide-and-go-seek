@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-from room_manager import create_room, join_room, get_room, add_chat_message
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 
-from room_manager import create_room, join_room, get_room
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+from room_manager import create_room, join_room, get_room, add_chat_message
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
@@ -12,7 +11,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route("/")
 def home():
-    return "Hide and Go Seek Server Running"
+    return render_template("index.html")
 
 @app.route("/create_room", methods=["POST", "OPTIONS"])
 def create_room_route():
@@ -24,7 +23,10 @@ def create_room_route():
 
     code = create_room(name)
 
-    return jsonify({"room_code": code})
+    return jsonify({
+        "room_code": code,
+        "success": True
+    })
 
 @app.route("/join_room", methods=["POST", "OPTIONS"])
 def join_room_route():
@@ -87,5 +89,9 @@ def send_chat():
 
     return jsonify({"success": True})
 
+@app.route("/room_page")
+def room_page():
+    return render_template("room.html")
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

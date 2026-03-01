@@ -1,33 +1,44 @@
+/* ===== Global Reset ===== */
+
+* {
+    box-sizing: border-box;
+}
+
+/* ===== Body ===== */
+
 body {
     font-family: 'Playfair Display', serif;
     text-align: center;
 
-    /* Soft gradient background */
     background: linear-gradient(135deg, #f0f4ff, #d6e4ff);
 
     min-height: 100vh;
     margin: 0;
+
+    overflow-x: hidden;
 }
 
-/* Container */
+/* ===== Container ===== */
 
 .container {
     max-width: 450px;
+    width: 95%;
+
     margin: auto;
-    padding: 40px 20px;
+    padding: 40px 15px;
 }
 
-/* Title */
+/* ===== Title ===== */
 
 h1 {
     font-size: 48px;
     margin-bottom: 30px;
 }
 
-/* Inputs */
+/* ===== Inputs ===== */
 
 input {
-    width: 90%;
+    width: 100%;
     padding: 14px;
     margin: 10px 0;
 
@@ -37,10 +48,15 @@ input {
     font-size: 16px;
 }
 
-/* Buttons */
+/* Prevent mobile zoom on focus */
+input, textarea {
+    font-size: 16px;
+}
+
+/* ===== Buttons ===== */
 
 button {
-    width: 92%;
+    width: 100%;
     padding: 14px;
 
     margin: 10px 0;
@@ -63,7 +79,7 @@ button:hover {
     transform: scale(1.02);
 }
 
-/* Home Button Special Style */
+/* ===== Home Button ===== */
 
 .home-btn {
     position: absolute;
@@ -82,7 +98,7 @@ button:hover {
     background: #ff8787;
 }
 
-/* Player list */
+/* ===== Player List ===== */
 
 ul {
     list-style: none;
@@ -93,6 +109,8 @@ li {
     padding: 8px;
     font-size: 18px;
 }
+
+/* ===== Emoji Picker ===== */
 
 .emoji-box {
     background: white;
@@ -108,21 +126,15 @@ li {
     display: inline-block;
 }
 
+/* ===== Message Box ===== */
+
 #messageBox {
     color: rgb(233, 32, 32);
     font-weight: bold;
     margin-top: 10px;
 }
 
-.chat-box {
-    height: 150px;
-    overflow-y: auto;
-    background: white;
-    border-radius: 12px;
-    padding: 10px;
-    margin-top: 20px;
-    text-align: left;
-}
+/* ===== Chat ===== */
 
 .chat-container {
     position: fixed;
@@ -130,7 +142,8 @@ li {
     left: 0;
 
     width: 100%;
-    background: rgba(255,255,255,0.9);
+
+    background: rgba(255,255,255,0.95);
 
     padding: 12px;
 
@@ -139,6 +152,7 @@ li {
 
 .chat-box {
     height: 120px;
+
     overflow-y: auto;
 
     background: white;
