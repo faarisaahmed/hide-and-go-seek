@@ -1,6 +1,6 @@
 const backend = "http://192.168.1.171:5000";
 
-const EMOJIS = ["😀","😃","😄","😁","😆","😊","🙂","🥲","😢","😎","🤠","🥳","😺","🐸"];
+const EMOJIS = ["😀","😃","😄","😁","😆","😊","🙂","🥲","😢","😎","🤠","🥳","😺","🐸", "🌺"];
 
 // =========================
 // Navigation
@@ -278,4 +278,20 @@ async function sendChat() {
     });
 
     input.value = "";
+}
+
+function toggleChat() {
+
+    let panel = document.getElementById("chatPanel");
+    let icon = document.getElementById("chatToggleIcon");
+
+    if (!panel || !icon) return;
+
+    panel.classList.toggle("collapsed");
+
+    if (panel.classList.contains("collapsed")) {
+        icon.innerText = "▲";   // Upside down triangle when collapsed
+    } else {
+        icon.innerText = "▼";   // Down triangle when expanded
+    }
 }
