@@ -93,5 +93,9 @@ def send_chat():
 def room_page():
     return render_template("room.html")
 
+@app.route("/game_page")
+def game_page():
+    return render_template("game.html")
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
