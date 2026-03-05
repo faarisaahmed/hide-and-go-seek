@@ -196,3 +196,77 @@ li {
     max-height: 0;
     padding: 0;
 }
+
+/* ===== Mobile Controls Container ===== */
+
+#controls {
+  position: fixed;
+  bottom: 40px; /* Sits above the chat */
+  left: 0;
+  width: 100%;
+  height: 160px;
+  pointer-events: none; /* Clicks pass through the empty space */
+  z-index: 9999; /* Higher than chat */
+}
+
+#joystick {
+  position: absolute;
+  left: 40px;
+  bottom: 0;
+  width: 120px;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  pointer-events: auto; /* Clicks STOP here for the joystick */
+  touch-action: none; 
+}
+
+#stick {
+  width: 50px;
+  height: 50px;
+  background: #333;
+  border-radius: 50%;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin-left: -25px;
+  margin-top: -25px;
+  pointer-events: none;
+}
+
+#buttons {
+  position: absolute;
+  right: 40px;
+  bottom: 0;
+  width: 160px;
+  height: 160px;
+  pointer-events: auto; /* Clicks STOP here for buttons */
+}
+/* ... keep your existing button positioning (btnX, btnA, etc) ... */
+
+#buttons button {
+  position: absolute;
+  width: 54px; /* Slightly larger for better thumb accuracy */
+  height: 54px;
+  border-radius: 50%;
+  border: 2px solid #555;
+  background: #333;
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+  box-shadow: 0 4px 0 #111;
+  transition: transform 0.05s;
+}
+
+#buttons button:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #111;
+  background: #555;
+}
+
+/* Specific Button Positions */
+#btnX { top: 0; left: 53px; }
+#btnB { bottom: 0; left: 53px; }
+#btnY { left: 0; top: 53px; }
+#btnA { right: 0; top: 53px; }

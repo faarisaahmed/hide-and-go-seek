@@ -1,51 +1,114 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <title>Hide and Go Seek</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
 
-<title>Hide and Go Seek</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #dbdbdb; }
+        canvas { display: block; }
 
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        /* Unified Control Styles */
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            width: 100%;
+            height: 160px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
 
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
+        #joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            border: 4px solid rgba(255,255,255,0.3);
+            touch-action: none;
+        }
 
-<style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: #111;
-}
-canvas {
-    display: block;
-}
-</style>
+        #stick {
+            width: 50px;
+            height: 50px;
+            background: #333;
+            border-radius: 50%;
+            position: absolute;
+            /* Center perfectly for the JS math */
+            left: 50%;
+            top: 50%;
+            margin-left: -25px;
+            margin-top: -25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
 
+        #buttons {
+            width: 140px;
+            height: 140px;
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        .btn { 
+            width: 48px; height: 48px; border-radius: 50%; background: #333; color: white; 
+            position: absolute; display: flex; align-items: center; justify-content: center; 
+            font-family: sans-serif; font-weight: bold; user-select: none; 
+            border: 2px solid #555; box-shadow: 0 4px 0 #111;
+        }
+        .btn:active { background: #555; transform: translateY(2px); box-shadow: 0 2px 0 #111; }
+        
+        #btnX { top: 0; left: 46px; }
+        #btnA { top: 46px; right: 0; }
+        #btnB { bottom: 0; left: 46px; background: #444; } /* The Sprint Button */
+        #btnY { top: 46px; left: 0; }
+    </style>
 </head>
 
 <body>
 
 <canvas id="gameCanvas"></canvas>
 
+<div id="controls">
+    <div id="joystick">
+        <div id="stick"></div>
+    </div>
+
+    <div id="buttons">
+        <div id="btnX" class="btn">X</div>
+        <div id="btnA" class="btn">A</div>
+        <div id="btnB" class="btn">B</div>
+        <div id="btnY" class="btn">Y</div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='game/player_controller.js') }}"></script>
 <script src="{{ url_for('static', filename='game/map_loader.js') }}"></script>
+<script src="{{ url_for('static', filename='game/physics.js') }}"></script>
 <script src="{{ url_for('static', filename='game/renderer.js') }}"></script>
 
 <script>
-
-/* =========================
-Game Startup
-========================= */
-
 async function startGame() {
-
-    await loadMap("house1");
-
+    // Basic check to ensure player_controller initialized
+    if (window.initMobileControls) {
+        window.initMobileControls();
+    }
+    
+    if (typeof loadMap === "function") {
+        await loadMap("house1");
+    }
     console.log("Game started");
-
 }
 
 startGame();
-
 </script>
 
 </body>
