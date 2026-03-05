@@ -30,6 +30,8 @@ Draw Loop
 
 function renderGame() {
 
+    playerControllerUpdate();
+
     if (!canvas || !ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -53,7 +55,7 @@ function drawMap(map) {
 
     if (!map.walls) return;
 
-    ctx.fillStyle = "#333";
+    ctx.fillStyle = "#5c3a3aff";
 
     map.walls.forEach(w => {
 
@@ -73,7 +75,7 @@ Player Rendering
 
 function drawPlayer() {
 
-    ctx.fillStyle = "blue";
+    ctx.fillStyle = "#4CAF50";
 
     ctx.fillRect(
         player.x,
