@@ -4,8 +4,8 @@ Handles keyboard + mobile joystick + Switch-style ABXY input.
 */
 
 let keys = {};
-let playerSpeed = 3;
-let sprintMultiplier = 2.0;
+let playerSpeed = 10;
+let sprintMultiplier = 1.5;
 
 // Mobile State
 let joystickVector = { x: 0, y: 0 };

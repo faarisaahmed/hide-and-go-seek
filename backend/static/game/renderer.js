@@ -1,19 +1,15 @@
 /*
 renderer.js
-Handles all game drawing using HTML Canvas.
+Handles rendering and camera movement.
 */
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let player = {
-    x: 100,
-    y: 100,
-    size: 20
-};
+let map = null;
 
 /* =========================
-Canvas Setup
+Canvas Resize
 ========================= */
 
 function resizeCanvas() {
@@ -25,68 +21,96 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 /* =========================
-Draw Loop
+Camera
 ========================= */
 
-function renderGame() {
+let camera = {
+    x: 0,
+    y: 0
+};
 
-    playerControllerUpdate();
+/* =========================
+Main Render Loop
+========================= */
 
-    if (!canvas || !ctx) return;
+function gameLoop() {
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    requestAnimationFrame(gameLoop);
 
-    let map = getMap();
+    map = getMap();
+    if (!map) return;
 
-    if (map) {
-        drawMap(map);
+    /* Update player movement */
+    if (typeof window.playerControllerUpdate === "function") {
+        window.playerControllerUpdate();
     }
 
-    drawPlayer();
+    /* Center camera on player */
+    camera.x = player.x - canvas.width / 2;
+    camera.y = player.y - canvas.height / 2;
 
-    requestAnimationFrame(renderGame);
-}
+    /* Clear screen */
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-/* =========================
-Map Rendering
-========================= */
+    /* Draw map background */
+    ctx.fillStyle = "#eeeeee";
+    ctx.fillRect(-camera.x, -camera.y, map.width, map.height);
 
-function drawMap(map) {
+    /* =========================
+       Draw Walls
+    ========================= */
 
-    if (!map.walls) return;
+    ctx.fillStyle = "#634646ff";
 
-    ctx.fillStyle = "#5c3a3aff";
-
-    map.walls.forEach(w => {
+    for (let wall of map.walls) {
 
         ctx.fillRect(
-            w.x,
-            w.y,
-            w.w,
-            w.h
+            wall.x - camera.x,
+            wall.y - camera.y,
+            wall.w,
+            wall.h
         );
-    });
 
-}
+    }
 
-/* =========================
-Player Rendering
-========================= */
+    /* =========================
+       Draw Base Zones
+    ========================= */
 
-function drawPlayer() {
+    if (map.base_zones) {
 
-    ctx.fillStyle = "#4CAF50";
+        ctx.fillStyle = "#7fbd64ff";
+
+        for (let zone of map.base_zones) {
+
+            ctx.fillRect(
+                zone.x - camera.x,
+                zone.y - camera.y,
+                zone.w,
+                zone.h
+            );
+
+        }
+
+    }
+
+    /* =========================
+       Draw Player
+    ========================= */
+
+    ctx.fillStyle = "#2abb67ff";
 
     ctx.fillRect(
-        player.x,
-        player.y,
+        player.x - camera.x,
+        player.y - camera.y,
         player.size,
         player.size
     );
+
 }
 
 /* =========================
 Start Renderer
 ========================= */
 
-renderGame();
+gameLoop();
