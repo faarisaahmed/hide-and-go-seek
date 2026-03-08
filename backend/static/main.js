@@ -1,14 +1,24 @@
-const backend = "http://192.168.1.181:5000";
-
+// 1. Define constants FIRST
+const backend = "http://192.168.4.43:5000";
 const EMOJIS = ["😀","😃","😄","😁","😆","😊","🙂","🥲","😢","😎","🤠","🥳","😺","🐸", "🌺", "🐀", "🤓", "🐥", "🐓", "🐦‍🔥"];
+
+// 2. Initialize socket after constants
+const socket = io(backend);
+
+// 3. Socket Listeners
+socket.on("trigger_start_game", () => {
+    sessionStorage.setItem("gameStarted", "true");
+    window.location.href = "/game_page";
+});
 
 // =========================
 // Navigation
 // =========================
 
 function goHome() {
-    localStorage.removeItem("roomCode");
-    window.location.href = backend + "/";
+    sessionStorage.removeItem("roomCode");
+    sessionStorage.removeItem("playerName");
+    window.location.href = "/";
 }
 
 // =========================
@@ -16,13 +26,11 @@ function goHome() {
 // =========================
 
 function getDisplayName() {
-    let name = document.getElementById("displayName").value;
-
+    let name = document.getElementById("displayName")?.value;
     if (!name || name.trim() === "") {
         alert("Please enter a username");
         return null;
     }
-
     return name.trim();
 }
 
@@ -36,23 +44,19 @@ async function createRoom() {
 
     let res = await fetch(backend + "/create_room", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name })
     });
 
     let data = await res.json();
-
     if (!data.success) {
         alert("Room creation failed");
         return;
     }
 
-    localStorage.setItem("roomCode", data.room_code);
-    localStorage.setItem("playerName", name);
-
-    window.location.href = backend + "/room_page";
+    sessionStorage.setItem("roomCode", data.room_code);
+    sessionStorage.setItem("playerName", name);
+    window.location.href = "/room_page";
 }
 
 // =========================
@@ -64,7 +68,6 @@ async function joinRoom() {
     if (!name) return;
 
     let code = document.getElementById("roomCodeInput").value;
-
     if (!/^[0-9]+$/.test(code)) {
         alert("Room code must be numbers only");
         return;
@@ -72,26 +75,19 @@ async function joinRoom() {
 
     let res = await fetch(backend + "/join_room", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            name: name,
-            code: code
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, code: code })
     });
 
     let data = await res.json();
-
     if (!data.success) {
-        alert("Room not found");
+        alert("Room not found or name already taken");
         return;
     }
 
-    localStorage.setItem("roomCode", code);
-    localStorage.setItem("playerName", name);
-
-    window.location.href = backend + "/room_page";
+    sessionStorage.setItem("roomCode", code);
+    sessionStorage.setItem("playerName", name);
+    window.location.href = "/room_page";
 }
 
 // =========================
@@ -99,14 +95,14 @@ async function joinRoom() {
 // =========================
 
 async function refreshRoom() {
-
-    let code = localStorage.getItem("roomCode");
-    let name = localStorage.getItem("playerName");
-
+    let code = sessionStorage.getItem("roomCode");
+    let name = sessionStorage.getItem("playerName");
     if (!code) return;
 
-    document.getElementById("roomCodeDisplay").innerText =
-        "Room Code: " + code + " | Player: " + name;
+    let title = document.getElementById("roomCodeDisplay");
+    if (title) {
+        title.innerText = "Room Code: " + code + " | Player: " + name;
+    }
 
     let res = await fetch(backend + "/room/" + code);
     let data = await res.json();
@@ -121,25 +117,36 @@ async function refreshRoom() {
 // =========================
 
 function updatePlayerList(players) {
-
     let list = document.getElementById("playerList");
-
     if (!list) return;
 
     list.innerHTML = "";
+    let amIHost = false;
+    const myName = sessionStorage.getItem("playerName");
 
     players.forEach(p => {
-
         let li = document.createElement("li");
-        li.innerText = p.emoji + " " + p.name;
+        li.innerText = p.emoji + " " + p.name + (p.isHost ? " 👑" : "");
 
-        if (p.name === localStorage.getItem("playerName")) {
+        if (p.name === myName) {
             li.style.cursor = "pointer";
-            li.onclick = showEmojiPicker;
-        }
+            li.style.fontWeight = "bold";
+            li.style.textDecoration = "underline";
+            
+            // Re-attach the emoji picker click
+            li.onclick = function() {
+                showEmojiPicker();
+            };
 
+            if (p.isHost) amIHost = true;
+        }
         list.appendChild(li);
     });
+
+    let startBtn = document.getElementById("startButton") || document.querySelector("button[onclick='startGame()']");
+    if (startBtn) {
+        startBtn.style.display = amIHost ? "block" : "none";
+    }
 }
 
 // =========================
@@ -147,22 +154,21 @@ function updatePlayerList(players) {
 // =========================
 
 window.onload = function() {
-
     let path = window.location.pathname;
 
     if (path.includes("room_page")) {
-
-        let roomCode = localStorage.getItem("roomCode");
-        let playerName = localStorage.getItem("playerName");
+        let roomCode = sessionStorage.getItem("roomCode");
+        let playerName = sessionStorage.getItem("playerName");
 
         if (!roomCode || !playerName) {
-            window.location.href = backend + "/";
+            window.location.href = "/";
             return;
         }
 
-        refreshRoom();
+        socket.emit("join_game", { code: roomCode, name: playerName });
 
-        setInterval(refreshChat, 1500);
+        refreshRoom();
+        setInterval(refreshChat, 2000);
         setInterval(refreshRoom, 3000);
     }
 }
@@ -172,35 +178,33 @@ window.onload = function() {
 // =========================
 
 function showEmojiPicker() {
-
     let box = document.getElementById("emojiPicker");
     if (!box) return;
 
-    box.style.display = "block";
+    box.style.display = "flex";
+    box.style.flexWrap = "wrap";
     box.innerHTML = "";
 
     EMOJIS.forEach(e => {
-
         let div = document.createElement("div");
         div.className = "emoji-option";
         div.innerText = e;
+        div.style.cursor = "pointer";
+        div.style.padding = "5px";
+        div.style.fontSize = "24px";
 
         div.onclick = () => changeEmoji(e);
-
         box.appendChild(div);
     });
 }
 
 async function changeEmoji(emoji) {
-
-    let code = localStorage.getItem("roomCode");
-    let name = localStorage.getItem("playerName");
+    let code = sessionStorage.getItem("roomCode");
+    let name = sessionStorage.getItem("playerName");
 
     let res = await fetch(backend + "/change_emoji", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             code: code,
             name: name,
@@ -209,18 +213,15 @@ async function changeEmoji(emoji) {
     });
 
     let data = await res.json();
-
     let msgBox = document.getElementById("messageBox");
 
     if (!data.success) {
-        msgBox.innerText = data.message || "Already taken!";
+        if (msgBox) msgBox.innerText = data.message || "Already taken!";
         return;
     }
 
-    msgBox.innerText = "";
-
+    if (msgBox) msgBox.innerText = "";
     document.getElementById("emojiPicker").style.display = "none";
-
     refreshRoom();
 }
 
@@ -229,9 +230,7 @@ async function changeEmoji(emoji) {
 // =========================
 
 async function refreshChat() {
-
-    let code = localStorage.getItem("roomCode");
-
+    let code = sessionStorage.getItem("roomCode");
     if (!code) return;
 
     let res = await fetch(backend + "/room/" + code);
@@ -240,16 +239,12 @@ async function refreshChat() {
     if (!data || !data.chat) return;
 
     let box = document.getElementById("chatBox");
-
     if (!box) return;
 
     box.innerHTML = "";
-
     data.chat.forEach(msg => {
-
         let div = document.createElement("div");
         div.innerText = msg.name + ": " + msg.message;
-
         box.appendChild(div);
     });
 
@@ -257,15 +252,14 @@ async function refreshChat() {
 }
 
 async function sendChat() {
-
     let input = document.getElementById("chatInput");
     if (!input) return;
 
     let message = input.value.trim();
     if (!message) return;
 
-    let code = localStorage.getItem("roomCode");
-    let name = localStorage.getItem("playerName");
+    let code = sessionStorage.getItem("roomCode");
+    let name = sessionStorage.getItem("playerName");
 
     await fetch(backend + "/send_chat", {
         method: "POST",
@@ -281,17 +275,19 @@ async function sendChat() {
 }
 
 function toggleChat() {
-
     let panel = document.getElementById("chatPanel");
     let icon = document.getElementById("chatToggleIcon");
-
     if (!panel || !icon) return;
 
     panel.classList.toggle("collapsed");
+    icon.innerText = panel.classList.contains("collapsed") ? "▲" : "▼";
+}
 
-    if (panel.classList.contains("collapsed")) {
-        icon.innerText = "▲";   // Upside down triangle when collapsed
-    } else {
-        icon.innerText = "▼";   // Down triangle when expanded
-    }
+// =========================
+// Game Management
+// =========================
+
+function startGame() {
+    let code = sessionStorage.getItem("roomCode");
+    socket.emit("start_game_request", { code: code });
 }
