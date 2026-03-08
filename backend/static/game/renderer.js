@@ -63,14 +63,12 @@ function gameLoop() {
     ctx.fillStyle = "#634646ff";
 
     for (let wall of map.walls) {
-
         ctx.fillRect(
             wall.x - camera.x,
             wall.y - camera.y,
             wall.w,
             wall.h
         );
-
     }
 
     /* =========================
@@ -78,28 +76,22 @@ function gameLoop() {
     ========================= */
 
     if (map.base_zones) {
-
         ctx.fillStyle = "#7fbd64ff";
-
         for (let zone of map.base_zones) {
-
             ctx.fillRect(
                 zone.x - camera.x,
                 zone.y - camera.y,
                 zone.w,
                 zone.h
             );
-
         }
-
     }
 
     /* =========================
-       Draw Player
+       Draw Player (Local)
     ========================= */
 
     ctx.fillStyle = "#2abb67ff";
-
     ctx.fillRect(
         player.x - camera.x,
         player.y - camera.y,
@@ -107,6 +99,24 @@ function gameLoop() {
         player.size
     );
 
+    /* =========================
+    Draw Other Players
+    ========================= */
+
+    if (typeof otherPlayers !== 'undefined') {
+        for (const id in otherPlayers) {
+            let p = otherPlayers[id];
+
+            ctx.fillStyle = "#66b3ff"; // light blue
+
+            ctx.fillRect(
+                p.x - camera.x,
+                p.y - camera.y,
+                player.size,
+                player.size
+            );
+        }
+    }
 }
 
 /* =========================

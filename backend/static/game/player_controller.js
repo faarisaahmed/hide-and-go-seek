@@ -111,7 +111,6 @@ Movement Update Loop
 function updatePlayerMovement() {
     let currentSpeed = playerSpeed;
 
-    // Sprint check
     if (keys["shift"] || isSprinting) {
         currentSpeed *= sprintMultiplier;
     }
@@ -119,24 +118,31 @@ function updatePlayerMovement() {
     let dx = 0;
     let dy = 0;
 
-    // Keyboard Logic
     if (keys["w"] || keys["arrowup"]) dy -= currentSpeed;
     if (keys["s"] || keys["arrowdown"]) dy += currentSpeed;
     if (keys["a"] || keys["arrowleft"]) dx -= currentSpeed;
     if (keys["d"] || keys["arrowright"]) dx += currentSpeed;
 
-    // Joystick Logic (Takes priority if moved)
     if (Math.abs(joystickVector.x) > 0.01 || Math.abs(joystickVector.y) > 0.01) {
         dx = joystickVector.x * currentSpeed;
         dy = joystickVector.y * currentSpeed;
     }
 
+    // Logic for when movement is happening
     if (dx !== 0 || dy !== 0) {
         if (typeof moveWithCollision === "function") {
             moveWithCollision(dx, dy);
         } else {
             window.player.x += dx;
             window.player.y += dy;
+        }
+
+        // ADD THE SOCKET EMIT HERE:
+        if (window.socket) {
+            window.socket.emit("player_move", {
+                x: window.player.x,
+                y: window.player.y
+            });
         }
     }
 }
