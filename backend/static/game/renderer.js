@@ -88,7 +88,7 @@ function gameLoop() {
     }
 
     /* =========================
-       Draw Player (Local)
+    Draw Player (Local)
     ========================= */
 
     ctx.fillStyle = "#2abb67ff";
@@ -99,21 +99,54 @@ function gameLoop() {
         player.size
     );
 
+    // --- Draw local name ---
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center";
+
+    // Use the name stored in the window.playerName variable (we will set this next)
+    const myDisplayName = window.currentName || "You"; 
+
+    ctx.fillText(
+        myDisplayName, 
+        player.x - camera.x + (player.size / 2), 
+        player.y - camera.y + player.size + 15 
+    );
+
     /* =========================
     Draw Other Players
     ========================= */
 
     if (typeof otherPlayers !== 'undefined') {
         for (const id in otherPlayers) {
+            // Skip drawing yourself to avoid the "ghost" overlap
+            if (id === window.socket.id) continue;
+
             let p = otherPlayers[id];
 
-            ctx.fillStyle = "#66b3ff"; // light blue
+            // --- REMOVED SMOOTHING ---
+            // We no longer use p.x += (target - p.x) * 0.1
+            // We set the position directly to the target for 1:1 precision.
+            p.x = p.targetX !== undefined ? p.targetX : p.x;
+            p.y = p.targetY !== undefined ? p.targetY : p.y;
 
+            // Draw Player Square
+            ctx.fillStyle = "#66b3ff"; // Light blue for others
             ctx.fillRect(
                 p.x - camera.x,
                 p.y - camera.y,
                 player.size,
                 player.size
+            );
+
+            // Draw Name Tag
+            ctx.fillStyle = "#000000";
+            ctx.font = "bold 14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(
+                p.name, 
+                p.x - camera.x + (player.size / 2), 
+                p.y - camera.y + player.size + 15
             );
         }
     }

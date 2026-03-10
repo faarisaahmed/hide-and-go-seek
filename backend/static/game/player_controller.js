@@ -27,10 +27,9 @@ Mobile Control Logic
 function initMobileControls() {
     const knob = document.getElementById('stick'); 
     const boundary = document.getElementById('joystick');
-    const btnB = document.getElementById('btnB'); // Match the new ID
+    const btnB = document.getElementById('btnB');
 
     if (!knob || !boundary) {
-        // If script loads before HTML, retry in a moment
         setTimeout(initMobileControls, 100);
         return;
     }
@@ -41,11 +40,9 @@ function initMobileControls() {
         if (!isDragging) return;
         if (e.cancelable) e.preventDefault();
 
-        // 1. Get coordinates for both Touch and Mouse
         const pointer = e.touches ? e.touches[0] : e;
         const rect = boundary.getBoundingClientRect();
         
-        // Center of the boundary
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
@@ -55,16 +52,13 @@ function initMobileControls() {
         const distance = Math.sqrt(dx * dx + dy * dy);
         const maxRadius = rect.width / 2;
 
-        // Keep stick inside boundary
         if (distance > maxRadius) {
             dx *= maxRadius / distance;
             dy *= maxRadius / distance;
         }
 
-        // 2. Move stick visually
         knob.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
 
-        // 3. Set movement values (-1.0 to 1.0)
         joystickVector.x = dx / maxRadius;
         joystickVector.y = dy / maxRadius;
     };
@@ -80,16 +74,13 @@ function initMobileControls() {
         knob.style.transform = `translate3d(0, 0, 0)`;
     };
 
-    // --- Events ---
     boundary.addEventListener("touchstart", startMove, { passive: false });
     boundary.addEventListener("mousedown", startMove);
-
     window.addEventListener("touchmove", handleMove, { passive: false });
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("touchend", stopMove);
     window.addEventListener("mouseup", stopMove);
 
-    // --- Sprint Button Logic (B Button) ---
     if (btnB) {
         const startSprint = (e) => {
             if (e.cancelable) e.preventDefault();
@@ -128,7 +119,6 @@ function updatePlayerMovement() {
         dy = joystickVector.y * currentSpeed;
     }
 
-    // Logic for when movement is happening
     if (dx !== 0 || dy !== 0) {
         if (typeof moveWithCollision === "function") {
             moveWithCollision(dx, dy);
@@ -136,23 +126,24 @@ function updatePlayerMovement() {
             window.player.x += dx;
             window.player.y += dy;
         }
-
-        // ADD THE SOCKET EMIT HERE:
-        if (window.socket) {
-            window.socket.emit("player_move", {
-                x: window.player.x,
-                y: window.player.y
-            });
-        }
     }
 }
 
-// Ensure controller update is globally accessible
+// --- NEW TICK RATE HEARTBEAT ---
+// This sends data 60 times a second, independent of movement.
+setInterval(() => {
+    if (window.socket && window.player) {
+        window.socket.emit("player_move", {
+            x: window.player.x,
+            y: window.player.y
+        });
+    }
+}, 16); 
+
 window.playerControllerUpdate = function() {
     updatePlayerMovement();
 };
 
-// Final Initialize
 if (document.readyState === 'loading') {
     window.addEventListener('DOMContentLoaded', initMobileControls);
 } else {

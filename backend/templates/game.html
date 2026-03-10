@@ -104,8 +104,12 @@ window.socket = io(); // Changed to window.socket
 let otherPlayers = {};
 
 async function startGame() {
-    const roomCode = localStorage.getItem("roomCode");
-    const playerName = localStorage.getItem("playerName");
+    // Force pull from sessionStorage (ensure this matches main.js)
+    const roomCode = sessionStorage.getItem("roomCode");
+    const playerName = sessionStorage.getItem("playerName");
+
+    // Set this globally so renderer.js can see it immediately
+    window.currentName = playerName;
 
     // 1. Listen for new players joining
     socket.on("player_joined_game", (data) => {
@@ -121,8 +125,9 @@ async function startGame() {
     socket.on("player_moved", (data) => {
         if (!otherPlayers[data.id]) return;
 
-        otherPlayers[data.id].x = data.x;
-        otherPlayers[data.id].y = data.y;
+        // Store the NEW position as a target
+        otherPlayers[data.id].targetX = data.x;
+        otherPlayers[data.id].targetY = data.y;
     });
 
     // 3. Emit join event
