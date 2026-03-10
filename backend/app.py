@@ -199,9 +199,11 @@ def on_player_move(data):
     if not player:
         return
 
+    # Update the server's memory of where you are
     player["x"] = data["x"]
     player["y"] = data["y"]
 
+    # Broadcast to everyone else
     emit("player_moved", {
         "id": request.sid,
         "x": data["x"],

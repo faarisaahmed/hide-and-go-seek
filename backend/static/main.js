@@ -42,21 +42,35 @@ async function createRoom() {
     let name = getDisplayName();
     if (!name) return;
 
-    let res = await fetch(backend + "/create_room", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name })
-    });
+    try {
+        let res = await fetch(backend + "/create_room", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name })
+        });
 
-    let data = await res.json();
-    if (!data.success) {
-        alert("Room creation failed");
-        return;
+        let data = await res.json();
+        
+        if (data.success) {
+            // 1. Clear ALL old session data to prevent "old name" bugs
+            sessionStorage.clear();
+            
+            // 2. Also clear localStorage just in case an old script used it
+            localStorage.clear();
+
+            // 3. Save the FRESH credentials
+            sessionStorage.setItem("roomCode", data.room_code);
+            sessionStorage.setItem("playerName", name);
+
+            // 4. Redirect
+            window.location.href = "/room_page";
+        } else {
+            alert("Room creation failed");
+        }
+    } catch (error) {
+        console.error("Error creating room:", error);
+        alert("Could not connect to server.");
     }
-
-    sessionStorage.setItem("roomCode", data.room_code);
-    sessionStorage.setItem("playerName", name);
-    window.location.href = "/room_page";
 }
 
 // =========================
