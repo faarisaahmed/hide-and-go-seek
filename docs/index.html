@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#050b1a">
+
+<title>Hide and Go Seek</title>
+<meta name="description"
+      content="A browser game of hide and seek in a twelve-room house. One seeker counts to twenty; everybody else has that long to find a wardrobe.">
+
+<meta property="og:title" content="Hide and Go Seek">
+<meta property="og:description"
+      content="One seeker counts to twenty. Everybody else has that long to find a wardrobe.">
+<meta property="og:image" content="preview.png">
+<meta property="og:type" content="website">
+
+<!--
+  This page is a signpost, not the game.
+
+  GitHub Pages only serves static files, and the game needs a Python
+  server for its rooms, its sockets, and every decision about who is
+  frozen or home. That runs elsewhere; this page points at it.
+
+  One thing to edit when the address changes:
+-->
+<script>
+  const GAME_URL = "";   // e.g. "https://hide-and-go-seek.onrender.com"
+</script>
+
+<style>
+  :root {
+      --bg-deep: #050b1a;
+      --bg-lift: #0e1c3c;
+      --surface: rgba(255, 255, 255, 0.055);
+      --border: rgba(255, 255, 255, 0.11);
+      --text: #e8effc;
+      --text-dim: #93a7cc;
+      --text-faint: #64789e;
+      --accent: #4da3ff;
+      --accent-deep: #1f6ad1;
+      --accent-ink: #03101f;
+      --safe: #2fd4c0;
+      --danger: #ff6b81;
+      --radius: 14px;
+      --radius-lg: 20px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+              "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+      margin: 0;
+      padding: 0 20px 72px;
+      font-family: var(--font);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.55;
+
+      background:
+          radial-gradient(1000px 600px at 15% -10%, #16336b 0%, transparent 60%),
+          radial-gradient(800px 500px at 90% 0%, #0d4a5e 0%, transparent 55%),
+          linear-gradient(170deg, var(--bg-lift), var(--bg-deep) 70%);
+      background-attachment: fixed;
+      min-height: 100vh;
+  }
+
+  main { max-width: 780px; margin: 0 auto; }
+
+  header { text-align: center; padding: 64px 0 8px; }
+
+  h1 {
+      margin: 0;
+      font-size: clamp(38px, 9vw, 62px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.02;
+  }
+  h1 span { color: var(--accent); }
+
+  .tagline {
+      margin: 14px auto 0;
+      max-width: 30em;
+      font-size: clamp(15px, 2.4vw, 18px);
+      color: var(--text-dim);
+  }
+
+  /* ===== Play ===== */
+
+  .play-row { text-align: center; margin: 30px 0 10px; }
+
+  .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 30px;
+
+      font-family: inherit;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+
+      color: var(--accent-ink);
+      background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+      border: 1px solid transparent;
+      border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(31, 106, 209, 0.35);
+
+      transition: transform 0.12s ease, box-shadow 0.15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(31, 106, 209, 0.45); }
+  .btn:active { transform: translateY(1px); }
+
+  /* Shown instead when no game is deployed, so the page never hands out
+     a link that goes nowhere. */
+  .btn--dormant {
+      color: var(--text-dim);
+      background: var(--surface);
+      border-color: var(--border);
+      box-shadow: none;
+      cursor: default;
+  }
+  .btn--dormant:hover { transform: none; box-shadow: none; }
+
+  .play-note {
+      margin: 12px 0 0;
+      font-size: 13.5px;
+      color: var(--text-faint);
+  }
+
+  /* ===== Preview ===== */
+
+  figure { margin: 34px 0 0; }
+
+  figure img {
+      width: 100%;
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  }
+
+  figcaption {
+      margin-top: 10px;
+      font-size: 13px;
+      text-align: center;
+      color: var(--text-faint);
+  }
+
+  /* ===== Sections ===== */
+
+  section { margin-top: 48px; }
+
+  h2 {
+      margin: 0 0 14px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+  }
+
+  .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+  }
+
+  ol.rules { margin: 0; padding-left: 20px; }
+  ol.rules li { margin-bottom: 10px; color: var(--text-dim); }
+  ol.rules li:last-child { margin-bottom: 0; }
+  ol.rules strong { color: var(--text); font-weight: 700; }
+  .seek { color: var(--danger); font-weight: 700; }
+  .safe { color: var(--safe); font-weight: 700; }
+
+  pre {
+      margin: 0;
+      padding: 16px 18px;
+      overflow-x: auto;
+
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: var(--text);
+
+      background: rgba(0, 0, 0, 0.32);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+  }
+  pre .c { color: var(--text-faint); }
+
+  p.small { font-size: 14px; color: var(--text-dim); }
+  p.small:first-child { margin-top: 0; }
+  p.small:last-child { margin-bottom: 0; }
+
+  a { color: var(--accent); }
+
+  footer {
+      margin-top: 56px;
+      text-align: center;
+      font-size: 13.5px;
+      color: var(--text-faint);
+  }
+</style>
+</head>
+
+<body>
+<main>
+  <header>
+    <h1>Hide <span>and Go</span> Seek</h1>
+    <p class="tagline">
+      One seeker counts to twenty with their eyes shut. Everybody else has
+      that long to get across the house and find a wardrobe.
+    </p>
+
+    <div class="play-row">
+      <a id="play" class="btn btn--dormant" href="#">Not running right now</a>
+      <p class="play-note" id="playNote">
+        The game needs a live server, so it is not always up.
+        You can always run it yourself &mdash; see below.
+      </p>
+    </div>
+  </header>
+
+  <figure>
+    <img src="preview.png" width="1612" height="1054"
+         alt="Top-down view of the house: twelve furnished rooms around a
+              corridor, with the cyan home base in the hall at the centre.
+              The seeker is marked in red in the corridor, one hider is
+              frozen, and two more are tucked into furniture.">
+    <figcaption>
+      Twelve rooms, one home base in the middle, and somewhere to hide in
+      every one of them.
+    </figcaption>
+  </figure>
+
+  <section>
+    <h2>How it goes</h2>
+    <div class="card">
+      <ol class="rules">
+        <li>Everyone starts on the <span class="safe">home base</span> in
+            the middle of the house.</li>
+        <li>One player is the <span class="seek">seeker</span>. Their screen
+            goes black and they count to twenty.</li>
+        <li>Everybody else scatters. Hide near the base and you get moved
+            out &mdash; that is not hiding.</li>
+        <li>Tuck into a wardrobe, a bathtub, the curtains, under a bed. The
+            seeker has to walk up and <strong>search</strong> it to find you.</li>
+        <li>Get tagged and you <strong>freeze</strong> where you stand. A
+            hider who is still free can stand with you and thaw you out.
+            Somebody who already made it home cannot &mdash; so a rescue
+            always costs somebody their safety.</li>
+        <li><strong>Hiders win</strong> by getting every one of themselves
+            back onto the base. The <span class="seek">seeker</span> wins by
+            freezing everyone.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>Run it yourself</h2>
+    <div class="card">
+      <p class="small">
+        Everyone on the same Wi-Fi. They open your computer's address and
+        join with a four-digit code.
+      </p>
+      <pre><span class="c">git clone https://github.com/faarisaahmed/hide-and-go-seek</span>
+cd hide-and-go-seek/backend
+pip install -r requirements.txt
+python app.py</pre>
+      <p class="small">
+        For friends who are somewhere else entirely,
+        <code>./scripts/share.sh</code> opens a public tunnel and prints an
+        address anyone can open.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    Source on <a href="https://github.com/faarisaahmed/hide-and-go-seek">GitHub</a>.
+  </footer>
+</main>
+
+<script>
+  // A play button that does nothing is worse than one that admits it.
+  if (GAME_URL) {
+      const play = document.getElementById("play");
+      play.href = GAME_URL;
+      play.textContent = "Play now";
+      play.classList.remove("btn--dormant");
+      document.getElementById("playNote").textContent =
+          "Opens the live game. One of you creates a room; the rest join with the code.";
+  }
+</script>
+</body>
+</html>
