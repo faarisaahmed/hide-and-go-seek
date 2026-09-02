@@ -26,7 +26,7 @@
   One thing to edit when the address changes:
 -->
 <script>
-  const GAME_URL = "";   // e.g. "https://hide-and-go-seek.onrender.com"
+  const GAME_URL = "https://hide-and-go-seek.onrender.com";
 </script>
 
 <style>
@@ -292,8 +292,13 @@ python app.py</pre>
       play.href = GAME_URL;
       play.textContent = "Play now";
       play.classList.remove("btn--dormant");
+      // The host sleeps when nobody has played for a while, so the first
+      // click in a quiet spell sits there for half a minute. Better to say
+      // so than to have people think it is broken and give up.
       document.getElementById("playNote").textContent =
-          "Opens the live game. One of you creates a room; the rest join with the code.";
+          "One of you creates a room; everybody else joins with the code. "
+          + "If it has been quiet for a while the first load takes about "
+          + "30 seconds while the server wakes up.";
   }
 </script>
 </body>
