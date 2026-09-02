@@ -30,15 +30,17 @@ talks to whatever host served the page, so no config change is needed.
 ```
 backend/
   app.py            Flask + Socket.IO app factory and dev entrypoint
-  config.py         Tunable constants (port, emoji pool, spawn point)
+  config.py         Tunable constants (port, spawn point, limits)
+  extensions.py     The shared SocketIO object
   rooms.py          In-memory room + player store
   routes.py         HTTP endpoints (pages and room JSON API)
   events.py         Socket.IO event handlers
   static/
-    css/            Stylesheets (lobby pages and the game screen)
-    js/             Page scripts: session, api, home, lobby
-    js/game/        Game client: input, map loading, physics, render, net
-    js/game/maps/   Map definitions as JSON
+    css/            style.css (home + lobby), game.css (game screen)
+    js/             session.js, api.js, home.js, lobby.js
+    js/game/        config, input, map_loader, physics, network,
+                    renderer, and main.js which ties them together
+    maps/           Map definitions as JSON
   templates/        Jinja templates (base.html holds shared <head>)
 ```
 

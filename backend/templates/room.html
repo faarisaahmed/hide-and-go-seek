@@ -1,45 +1,39 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Room</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
+{% block title %}Lobby · Hide and Go Seek{% endblock %}
+
+{% block content %}
 <div class="container">
-    <button onclick="goHome()" class="home-btn">Home</button>
+    <button id="homeButton" class="home-btn">Home</button>
 
     <h2 id="roomCodeDisplay">Room</h2>
 
     <div class="chat-container">
-        <div class="chat-toggle" onclick="toggleChat()">
+        <div class="chat-toggle">
             <span id="chatToggleIcon">▼</span>
         </div>
 
         <div id="chatPanel" class="chat-panel">
             <div id="chatBox" class="chat-box"></div>
             <input id="chatInput" placeholder="Type message...">
-            <button onclick="sendChat()">Send</button>
+            <button id="sendChatButton">Send</button>
         </div>
     </div>
 
     <h3>Players</h3>
     <ul id="playerList"></ul>
 
-    <button id="startButton" onclick="startGame()" style="display:none;">Start Game</button>
+    {# Shown by lobby.js only for the host. #}
+    <button id="startButton" style="display:none;">Start Game</button>
 
     <div id="emojiPicker" class="emoji-box" style="display:none;"></div>
     <div id="messageBox"></div>
 
-    <button onclick="refreshRoom()">Refresh Players</button>
+    <button id="refreshButton">Refresh Players</button>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-
-<script src="{{ url_for('static', filename='main.js') }}"></script>
-
-</body>
-</html>
+<script type="module" src="{{ url_for('static', filename='js/lobby.js') }}"></script>
+{% endblock %}

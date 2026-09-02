@@ -1,0 +1,103 @@
+/* Styles for the game screen: full-bleed canvas plus touch controls.
+   Lifted out of an inline <style> block in game.html. */
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #dbdbdb;
+}
+
+canvas {
+    display: block;
+}
+
+/* ===== Touch controls =====
+   The bar itself ignores pointer events so taps land on the canvas; only
+   the joystick and button pad opt back in. */
+
+#controls {
+    position: fixed;
+    bottom: 30px;
+    width: 100%;
+    height: 160px;
+    z-index: 1000;
+
+    display: flex;
+    justify-content: space-between;
+    padding: 0 40px;
+
+    pointer-events: none;
+}
+
+#joystick {
+    position: relative;
+    width: 120px;
+    height: 120px;
+
+    background: rgba(0, 0, 0, 0.2);
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+
+    pointer-events: auto;
+    touch-action: none;
+}
+
+/* The knob. Moved with a transform from input.js, so it must not eat the
+   drag events meant for #joystick. */
+#stick {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 50px;
+    height: 50px;
+    margin-left: -25px;
+    margin-top: -25px;
+
+    background: #333;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+
+    pointer-events: none;
+}
+
+#buttons {
+    position: relative;
+    width: 140px;
+    height: 140px;
+
+    pointer-events: auto;
+    touch-action: none;
+}
+
+.btn {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-family: sans-serif;
+    font-weight: bold;
+    color: white;
+
+    background: #333;
+    border: 2px solid #555;
+    border-radius: 50%;
+    box-shadow: 0 4px 0 #111;
+
+    user-select: none;
+}
+
+.btn:active {
+    background: #555;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #111;
+}
+
+/* Diamond layout, Switch style. B is the sprint button. */
+#btnX { top: 0; left: 46px; }
+#btnY { top: 46px; left: 0; }
+#btnA { top: 46px; right: 0; }
+#btnB { bottom: 0; left: 46px; background: #444; }
