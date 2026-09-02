@@ -2,12 +2,12 @@
  * Input: keyboard (WASD / arrows, Shift to sprint) and the on-screen
  * joystick plus B button for touch.
  *
- * This module only reports intent. It does not touch the player or the
- * map — the game loop asks for a movement vector and decides what to do
- * with it.
+ * This module reports *intent* only — a direction and whether sprint is
+ * held. It does not know the player's speed, the map, or how long the
+ * frame was; the game loop turns that intent into a distance.
  */
 
-import { JOYSTICK_DEADZONE, PLAYER_SPEED, SPRINT_MULTIPLIER } from "./config.js";
+import { JOYSTICK_DEADZONE } from "./config.js";
 
 const keys = {};
 
@@ -24,6 +24,13 @@ window.addEventListener("keydown", (event) => {
 
 window.addEventListener("keyup", (event) => {
     keys[event.key.toLowerCase()] = false;
+});
+
+// Holding a key and then leaving the page would otherwise leave it stuck
+// down, and the player walking into a wall forever on return.
+window.addEventListener("blur", () => {
+    for (const key of Object.keys(keys)) keys[key] = false;
+    joystickSprinting = false;
 });
 
 /* =========================
@@ -81,19 +88,23 @@ export function initTouchControls() {
     window.addEventListener("touchmove", onDragMove, { passive: false });
     window.addEventListener("mousemove", onDragMove);
     window.addEventListener("touchend", onDragEnd);
+    window.addEventListener("touchcancel", onDragEnd);
     window.addEventListener("mouseup", onDragEnd);
 
     const onSprintStart = (event) => {
         if (event.cancelable) event.preventDefault();
         joystickSprinting = true;
+        sprintButton.classList.add("is-held");
     };
     const onSprintEnd = () => {
         joystickSprinting = false;
+        sprintButton.classList.remove("is-held");
     };
 
     sprintButton.addEventListener("touchstart", onSprintStart, { passive: false });
     sprintButton.addEventListener("mousedown", onSprintStart);
     sprintButton.addEventListener("touchend", onSprintEnd);
+    sprintButton.addEventListener("touchcancel", onSprintEnd);
     sprintButton.addEventListener("mouseup", onSprintEnd);
     sprintButton.addEventListener("mouseleave", onSprintEnd);
 }
@@ -107,25 +118,33 @@ function isDown(...names) {
 }
 
 /*
- * The movement the player is asking for this frame, in pixels.
- * The joystick takes priority when it is off centre.
+ * Where the player wants to go, as a vector no longer than 1, plus
+ * whether sprint is held. A partly tilted joystick gives a shorter
+ * vector, so it moves proportionally slower.
  */
-export function readMovement() {
-    const speed = isDown("shift") || joystickSprinting
-        ? PLAYER_SPEED * SPRINT_MULTIPLIER
-        : PLAYER_SPEED;
+export function readInput() {
+    const sprinting = isDown("shift") || joystickSprinting;
 
-    if (Math.abs(joystick.x) > JOYSTICK_DEADZONE || Math.abs(joystick.y) > JOYSTICK_DEADZONE) {
-        return { dx: joystick.x * speed, dy: joystick.y * speed };
+    if (Math.abs(joystick.x) > JOYSTICK_DEADZONE ||
+        Math.abs(joystick.y) > JOYSTICK_DEADZONE) {
+        return { x: joystick.x, y: joystick.y, sprinting };
     }
 
-    let dx = 0;
-    let dy = 0;
+    let x = 0;
+    let y = 0;
 
-    if (isDown("w", "arrowup")) dy -= speed;
-    if (isDown("s", "arrowdown")) dy += speed;
-    if (isDown("a", "arrowleft")) dx -= speed;
-    if (isDown("d", "arrowright")) dx += speed;
+    if (isDown("w", "arrowup")) y -= 1;
+    if (isDown("s", "arrowdown")) y += 1;
+    if (isDown("a", "arrowleft")) x -= 1;
+    if (isDown("d", "arrowright")) x += 1;
 
-    return { dx, dy };
+    // Normalise, or holding two keys would move you diagonally about 1.41
+    // times faster than in a straight line.
+    const length = Math.hypot(x, y);
+    if (length > 1) {
+        x /= length;
+        y /= length;
+    }
+
+    return { x, y, sprinting };
 }

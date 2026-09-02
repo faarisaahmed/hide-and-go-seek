@@ -2,9 +2,9 @@
  * The lobby (/room_page): player list, emoji picker, chat, and the host's
  * Start Game button.
  *
- * Room state is polled over HTTP rather than pushed, which is simple and
- * good enough for a lobby. The socket is used for the two things that
- * must feel instant: the host starting the game, and emoji changes.
+ * The server pushes room_updated whenever anything changes, so this is
+ * event-driven rather than polling. The slow poll left in place is only a
+ * safety net for a missed push.
  */
 
 import { changeEmoji, fetchRoom, sendChat } from "./api.js";
@@ -17,77 +17,128 @@ const EMOJIS = [
     "🤠", "🥳", "😺", "🐸", "🌺", "🐀", "🤓", "🐥", "🐓",
 ];
 
-/* The server pushes room_updated whenever anything changes, so this is
- * only a safety net in case a push is missed. */
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 15000;
+const COPIED_FEEDBACK_MS = 1200;
 
 let session;
 let socket;
 
+/* The last room we rendered, so the emoji picker knows what is taken. */
+let currentRoom = null;
+
 const els = {
     roomCode: document.getElementById("roomCodeDisplay"),
     playerList: document.getElementById("playerList"),
+    playerCount: document.getElementById("playerCount"),
     startButton: document.getElementById("startButton"),
+    waitingNote: document.getElementById("waitingNote"),
     emojiPicker: document.getElementById("emojiPicker"),
     message: document.getElementById("messageBox"),
-    chatToggle: document.querySelector(".chat-toggle"),
+    chatToggle: document.getElementById("chatToggle"),
     chatPanel: document.getElementById("chatPanel"),
-    chatToggleIcon: document.getElementById("chatToggleIcon"),
     chatBox: document.getElementById("chatBox"),
+    chatForm: document.getElementById("chatForm"),
     chatInput: document.getElementById("chatInput"),
     homeButton: document.getElementById("homeButton"),
-    sendChatButton: document.getElementById("sendChatButton"),
-    refreshButton: document.getElementById("refreshButton"),
 };
 
 /* =========================
  * Rendering
  * ========================= */
 
-function renderPlayers(players) {
-    els.playerList.innerHTML = "";
-    let amHost = false;
+function playerRow(player) {
+    const row = document.createElement("li");
+    row.className = "player";
 
-    for (const player of players) {
-        const item = document.createElement("li");
-        item.innerText = `${player.emoji} ${player.name}${player.isHost ? " 👑" : ""}`;
+    const emoji = document.createElement("span");
+    emoji.className = "player__emoji";
+    emoji.textContent = player.emoji;
 
-        // A player who is mid-navigation or briefly offline is greyed out
-        // rather than removed, matching how the server holds their place.
-        if (!player.connected) {
-            item.classList.add("is-away");
-        }
+    const name = document.createElement("span");
+    name.className = "player__name";
+    name.textContent = player.name;
 
-        if (player.name === session.name) {
-            // Our own row doubles as the emoji picker trigger.
-            item.classList.add("is-me");
-            item.addEventListener("click", showEmojiPicker);
-            amHost = player.isHost;
-        }
+    row.append(emoji, name);
 
-        els.playerList.appendChild(item);
+    if (player.isHost) {
+        const badge = document.createElement("span");
+        badge.className = "player__badge";
+        badge.textContent = "Host";
+        row.appendChild(badge);
     }
 
-    els.startButton.style.display = amHost ? "block" : "none";
+    // Briefly offline or moving between pages: faded, not removed.
+    if (!player.connected) {
+        row.classList.add("player--away");
+    }
+
+    if (player.name === session.name) {
+        // Our own row doubles as the emoji picker trigger.
+        row.classList.add("player--me");
+        row.addEventListener("click", toggleEmojiPicker);
+    }
+
+    return row;
+}
+
+function renderPlayers(players) {
+    const rows = document.createDocumentFragment();
+    for (const player of players) {
+        rows.appendChild(playerRow(player));
+    }
+
+    els.playerList.replaceChildren(rows);
+    els.playerCount.textContent = players.length;
+
+    const me = players.find((p) => p.name === session.name);
+    const amHost = Boolean(me && me.isHost);
+    els.startButton.hidden = !amHost;
+    els.waitingNote.hidden = amHost;
 }
 
 function renderChat(messages) {
-    els.chatBox.innerHTML = "";
+    if (messages.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "chat__empty";
+        empty.textContent = "No messages yet.";
+        els.chatBox.replaceChildren(empty);
+        return;
+    }
+
+    const lines = document.createDocumentFragment();
     for (const message of messages) {
         const line = document.createElement("div");
-        line.innerText = `${message.name}: ${message.message}`;
-        els.chatBox.appendChild(line);
+        line.className = "chat__msg";
+        if (message.name === session.name) {
+            line.classList.add("chat__msg--mine");
+        }
+
+        const author = document.createElement("span");
+        author.className = "chat__author";
+        author.textContent = `${message.name} `;
+
+        // textContent throughout, so a message can never inject markup.
+        line.append(author, document.createTextNode(message.message));
+        lines.appendChild(line);
     }
+
+    els.chatBox.replaceChildren(lines);
     els.chatBox.scrollTop = els.chatBox.scrollHeight;
 }
 
 function renderRoom(room) {
     if (!room) return;
+
+    currentRoom = room;
     renderPlayers(room.players);
     renderChat(room.chat);
+
+    // Keep an open picker in step with who has taken what.
+    if (!els.emojiPicker.hidden) {
+        renderEmojiPicker();
+    }
 }
 
-/* One request keeps both the player list and the chat current. */
 async function refresh() {
     renderRoom(await fetchRoom(session.code));
 }
@@ -96,16 +147,41 @@ async function refresh() {
  * Emoji picker
  * ========================= */
 
-function showEmojiPicker() {
-    els.emojiPicker.style.display = "flex";
-    els.emojiPicker.innerHTML = "";
+function renderEmojiPicker() {
+    const players = currentRoom ? currentRoom.players : [];
+    const mine = players.find((p) => p.name === session.name)?.emoji;
+    const taken = new Set(players.map((p) => p.emoji));
+
+    const options = document.createDocumentFragment();
 
     for (const emoji of EMOJIS) {
-        const option = document.createElement("div");
+        const option = document.createElement("button");
+        option.type = "button";
         option.className = "emoji-option";
-        option.innerText = emoji;
-        option.addEventListener("click", () => pickEmoji(emoji));
-        els.emojiPicker.appendChild(option);
+        option.textContent = emoji;
+
+        if (emoji === mine) {
+            option.classList.add("emoji-option--mine");
+            option.disabled = true;
+        } else if (taken.has(emoji)) {
+            // Show it greyed rather than hiding it, so the grid does not
+            // reshuffle every time somebody picks something.
+            option.classList.add("emoji-option--taken");
+            option.disabled = true;
+        } else {
+            option.addEventListener("click", () => pickEmoji(emoji));
+        }
+
+        options.appendChild(option);
+    }
+
+    els.emojiPicker.replaceChildren(options);
+}
+
+function toggleEmojiPicker() {
+    els.emojiPicker.hidden = !els.emojiPicker.hidden;
+    if (!els.emojiPicker.hidden) {
+        renderEmojiPicker();
     }
 }
 
@@ -113,20 +189,45 @@ async function pickEmoji(emoji) {
     const result = await changeEmoji(session.code, session.name, emoji);
 
     if (!result.success) {
-        els.message.innerText = result.message || "Already taken!";
+        els.message.textContent = result.message || "Already taken!";
         return;
     }
 
-    els.message.innerText = "";
-    els.emojiPicker.style.display = "none";
+    els.message.textContent = "";
+    els.emojiPicker.hidden = true;
     // The server pushes room_updated to everyone, including us.
+}
+
+/* =========================
+ * Room code
+ * ========================= */
+
+async function copyRoomCode() {
+    try {
+        await navigator.clipboard.writeText(session.code);
+    } catch {
+        // Clipboard needs a secure context, which plain http:// on a LAN
+        // is not. The code is on screen anyway, so this is not worth an
+        // error message.
+        return;
+    }
+
+    els.roomCode.textContent = "Copied";
+    els.roomCode.classList.add("is-copied");
+
+    setTimeout(() => {
+        els.roomCode.textContent = session.code;
+        els.roomCode.classList.remove("is-copied");
+    }, COPIED_FEEDBACK_MS);
 }
 
 /* =========================
  * Chat
  * ========================= */
 
-async function onSendChat() {
+async function onSendChat(event) {
+    event.preventDefault();
+
     const message = els.chatInput.value.trim();
     if (!message) return;
 
@@ -135,8 +236,8 @@ async function onSendChat() {
 }
 
 function toggleChat() {
-    const collapsed = els.chatPanel.classList.toggle("collapsed");
-    els.chatToggleIcon.innerText = collapsed ? "▲" : "▼";
+    const collapsed = els.chatPanel.classList.toggle("is-collapsed");
+    els.chatToggle.setAttribute("aria-expanded", String(!collapsed));
 }
 
 /* =========================
@@ -144,13 +245,14 @@ function toggleChat() {
  * ========================= */
 
 function start() {
-    els.roomCode.innerText = `Room Code: ${session.code} | Player: ${session.name}`;
+    els.roomCode.textContent = session.code;
 
     els.homeButton.addEventListener("click", goHome);
-    els.refreshButton.addEventListener("click", refresh);
-    els.sendChatButton.addEventListener("click", onSendChat);
+    els.roomCode.addEventListener("click", copyRoomCode);
+    els.chatForm.addEventListener("submit", onSendChat);
     els.chatToggle.addEventListener("click", toggleChat);
     els.startButton.addEventListener("click", () => {
+        els.startButton.disabled = true;
         socket.emit("start_game_request", { code: session.code });
     });
 
@@ -165,12 +267,15 @@ function start() {
 
     // The room expired while we were away, so there is nothing to show.
     socket.on("join_rejected", (data) => {
-        alert(data.message || "That room has closed.");
-        goHome();
+        els.message.textContent = data.message || "That room has closed.";
+        setTimeout(goHome, 1500);
     });
 
-    // Joining the socket room is what subscribes us to the broadcasts above.
-    socket.emit("join_lobby", { code: session.code, name: session.name });
+    // Re-announce ourselves after a dropped connection, otherwise we stop
+    // receiving the room's broadcasts.
+    socket.on("connect", () => {
+        socket.emit("join_lobby", { code: session.code, name: session.name });
+    });
 
     refresh();
     setInterval(refresh, POLL_INTERVAL_MS);

@@ -106,14 +106,17 @@ def test_an_unconnected_socket_cannot_start_a_game(client, sock):
 # ---------------------------------------------------------------------------
 
 def test_join_game_tells_you_where_to_stand(client, sock):
+    import maps
+
     code = room_with(client, "Alice")
     a = sock()
     a.emit("join_game", {"code": code, "name": "Alice"})
 
+    first = maps.load(config.DEFAULT_MAP)["spawn_points"][0]
     joined = payloads(a, "game_joined")[0]
     assert joined["map"] == config.DEFAULT_MAP
     assert joined["you"]["name"] == "Alice"
-    assert (joined["you"]["x"], joined["you"]["y"]) == (120, 120)
+    assert (joined["you"]["x"], joined["you"]["y"]) == (first["x"], first["y"])
     assert joined["players"] == []
 
 

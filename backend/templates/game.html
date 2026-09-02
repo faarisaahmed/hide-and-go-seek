@@ -1,28 +1,45 @@
 {% extends "base.html" %}
 
 {% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}">
 {% endblock %}
 
 {% block content %}
 <canvas id="gameCanvas"></canvas>
 
-{# Touch controls. Harmless on desktop, where keyboard input is used. #}
+<div class="hud">
+    <div class="hud__chip">
+        <span id="hudName">—</span>
+    </div>
+
+    <div class="hud__chip">
+        <span id="hudCount" class="hud__count">1</span>
+        <span>here</span>
+    </div>
+</div>
+
+{# Shown only while the connection is down. #}
+<div class="hud" id="connectionBanner" hidden style="top: 62px; justify-content: center;">
+    <div class="hud__chip hud__status">Reconnecting…</div>
+</div>
+
+{# Touch controls. Faded out on devices with a mouse. #}
 <div id="controls">
     <div id="joystick">
         <div id="stick"></div>
     </div>
 
     <div id="buttons">
-        <div id="btnX" class="btn">X</div>
-        <div id="btnA" class="btn">A</div>
-        <div id="btnB" class="btn">B</div>
-        <div id="btnY" class="btn">Y</div>
+        <div id="btnX" class="btn-pad">X</div>
+        <div id="btnA" class="btn-pad">A</div>
+        <div id="btnB" class="btn-pad">B</div>
+        <div id="btnY" class="btn-pad">Y</div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/socket.io.min.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/game/main.js') }}"></script>
 {% endblock %}
