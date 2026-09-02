@@ -10,14 +10,16 @@
 import { changeEmoji, fetchRoom, sendChat } from "./api.js";
 import { goHome, requireSession } from "./session.js";
 
-/* Emoji a player can choose from. The server only checks that a pick is
- * not already taken, so this list can grow freely. */
+/* Emoji a player can choose from. Must stay in step with EMOJI_POOL in
+ * the server's config.py, which is what actually validates a pick. */
 const EMOJIS = [
     "😀", "😃", "😄", "😁", "😆", "😊", "🙂", "🥲", "😢", "😎",
-    "🤠", "🥳", "😺", "🐸", "🌺", "🐀", "🤓", "🐥", "🐓", "🐦‍🔥",
+    "🤠", "🥳", "😺", "🐸", "🌺", "🐀", "🤓", "🐥", "🐓",
 ];
 
-const POLL_INTERVAL_MS = 2000;
+/* The server pushes room_updated whenever anything changes, so this is
+ * only a safety net in case a push is missed. */
+const POLL_INTERVAL_MS = 5000;
 
 let session;
 let socket;
@@ -49,6 +51,12 @@ function renderPlayers(players) {
     for (const player of players) {
         const item = document.createElement("li");
         item.innerText = `${player.emoji} ${player.name}${player.isHost ? " 👑" : ""}`;
+
+        // A player who is mid-navigation or briefly offline is greyed out
+        // rather than removed, matching how the server holds their place.
+        if (!player.connected) {
+            item.classList.add("is-away");
+        }
 
         if (player.name === session.name) {
             // Our own row doubles as the emoji picker trigger.
@@ -111,7 +119,7 @@ async function pickEmoji(emoji) {
 
     els.message.innerText = "";
     els.emojiPicker.style.display = "none";
-    refresh();
+    // The server pushes room_updated to everyone, including us.
 }
 
 /* =========================
@@ -124,7 +132,6 @@ async function onSendChat() {
 
     els.chatInput.value = "";
     await sendChat(session.code, session.name, message);
-    refresh();
 }
 
 function toggleChat() {
@@ -152,11 +159,18 @@ function start() {
         window.location.href = "/game_page";
     });
 
-    // Someone changed their emoji; the server hands us the new player list.
-    socket.on("player_updated", renderRoom);
+    // Anything that changes the room — a join, an emoji, a message, someone
+    // leaving — arrives here, so the list stays live without polling for it.
+    socket.on("room_updated", renderRoom);
+
+    // The room expired while we were away, so there is nothing to show.
+    socket.on("join_rejected", (data) => {
+        alert(data.message || "That room has closed.");
+        goHome();
+    });
 
     // Joining the socket room is what subscribes us to the broadcasts above.
-    socket.emit("join_game", { code: session.code, name: session.name });
+    socket.emit("join_lobby", { code: session.code, name: session.name });
 
     refresh();
     setInterval(refresh, POLL_INTERVAL_MS);

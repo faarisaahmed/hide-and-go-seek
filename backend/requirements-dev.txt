@@ -1,0 +1,3 @@
+# Everything in requirements.txt, plus what the tests need.
+-r requirements.txt
+pytest>=8.0

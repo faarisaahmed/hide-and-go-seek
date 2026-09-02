@@ -7,10 +7,10 @@
  */
 
 import { requireSession } from "../session.js";
-import { DEFAULT_MAP, PLAYER_SIZE, SPAWN_X, SPAWN_Y } from "./config.js";
+import { PLAYER_SIZE } from "./config.js";
 import { initTouchControls, readMovement } from "./input.js";
 import { loadMap } from "./map_loader.js";
-import { connect, getRemotePlayers } from "./network.js";
+import { getRemotePlayers, join } from "./network.js";
 import { moveWithCollision } from "./physics.js";
 import { createRenderer } from "./renderer.js";
 
@@ -18,14 +18,17 @@ async function start() {
     const session = requireSession();
     if (!session) return;
 
-    const localPlayer = { x: SPAWN_X, y: SPAWN_Y, size: PLAYER_SIZE };
+    // Filled in by the server, which decides where everyone spawns.
+    const localPlayer = { x: 0, y: 0, size: PLAYER_SIZE, name: session.name, emoji: "" };
 
     let map;
     try {
-        map = await loadMap(DEFAULT_MAP);
+        const joined = await join({ code: session.code, name: session.name, localPlayer });
+        map = await loadMap(joined.map);
     } catch (error) {
         console.error(error);
-        alert("Could not load the map.");
+        alert(error.message || "Could not start the game.");
+        window.location.href = "/room_page";
         return;
     }
 
@@ -33,7 +36,6 @@ async function start() {
     const remotePlayers = getRemotePlayers();
 
     initTouchControls();
-    connect({ code: session.code, name: session.name, localPlayer });
 
     function frame() {
         const { dx, dy } = readMovement();
@@ -41,12 +43,7 @@ async function start() {
             moveWithCollision(localPlayer, map, dx, dy);
         }
 
-        renderer.draw({
-            map,
-            localPlayer,
-            localName: session.name,
-            remotePlayers,
-        });
+        renderer.draw({ map, localPlayer, remotePlayers });
 
         requestAnimationFrame(frame);
     }

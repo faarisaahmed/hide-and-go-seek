@@ -9,22 +9,17 @@ export const SPRINT_MULTIPLIER = 1.5;
 /* Player square, in pixels. Also used as the collision box. */
 export const PLAYER_SIZE = 40;
 
-/* Where a player appears when the game starts. Mirrors SPAWN_X / SPAWN_Y
- * in the server's config.py, which is what other clients are told. */
-export const SPAWN_X = 100;
-export const SPAWN_Y = 100;
-
-/* How often we tell the server where we are. ~60 times a second, sent
- * whether or not we moved, which keeps other clients from ever showing a
- * stale position. */
+/* How often we check whether our position is worth sending. ~60 times a
+ * second, but a message only goes out when we actually moved. */
 export const NETWORK_TICK_MS = 16;
+
+/* Resend our position at least this often even when standing still, so a
+ * dropped packet cannot leave us frozen in someone else's view. */
+export const POSITION_KEEPALIVE_MS = 1000;
 
 /* Joystick input below this magnitude counts as centred, so a resting
  * thumb does not cause drift. */
 export const JOYSTICK_DEADZONE = 0.01;
-
-/* Which map to load. */
-export const DEFAULT_MAP = "house1";
 
 /* Colours. */
 export const COLORS = {
@@ -37,6 +32,9 @@ export const COLORS = {
 };
 
 export const NAME_TAG_FONT = "bold 14px Arial";
+
+/* Each player's chosen lobby emoji is drawn on their square. */
+export const EMOJI_FONT = "26px sans-serif";
 
 /* Gap between the bottom of a player square and their name. */
 export const NAME_TAG_OFFSET = 15;

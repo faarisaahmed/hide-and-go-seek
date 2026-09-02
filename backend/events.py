@@ -1,76 +1,119 @@
 # -*- coding: utf-8 -*-
 """Socket.IO event handlers.
 
-Naming note: Socket.IO rooms and game lobbies happen to be the same thing
-here — every client joins the Socket.IO room named after its room code, so
-broadcasting to a lobby is just ``to=code``. ``flask_socketio.join_room``
-is imported under an alias to keep it distinct from our own room helpers.
+Both pages open a socket. The lobby sends ``join_lobby`` just to subscribe
+to room broadcasts; the game page sends ``join_game``, which also places
+the player in the world at a spawn point.
+
+Naming note: Socket.IO rooms and game rooms line up exactly here, since
+every client subscribes to the Socket.IO room named after its room code.
+``flask_socketio.join_room`` is aliased to keep it distinct from our own
+room helpers.
 """
 
 from flask import request
 from flask_socketio import emit
 from flask_socketio import join_room as subscribe_to_room
 
+import config
 import rooms
 from extensions import socketio
 
 
-def _player_payload(sid, player):
-    """Shape a connected player for the wire."""
+def _world_payload(player):
+    """How a player appears to everyone else in the game world."""
     return {
-        "id": sid,
+        "id": player["sid"],
         "name": player["name"],
+        "emoji": player["emoji"],
         "x": player["x"],
         "y": player["y"],
     }
 
 
-@socketio.on("join_game")
-def on_join_game(data):
-    """A client entered a lobby or the game world.
+def _reject(message):
+    emit("join_rejected", {"message": message})
 
-    Both the lobby page and the game page emit this, which is how a player
-    keeps receiving room broadcasts across the page navigation.
-    """
-    code = str(data.get("code"))
-    sid = request.sid
+
+@socketio.on("join_lobby")
+def on_join_lobby(data):
+    """A lobby page is asking to receive this room's broadcasts."""
+    code = rooms.clean_code(data.get("code"))
+    name = data.get("name")
+
+    if rooms.attach(request.sid, code, name) is None:
+        _reject("That room has closed.")
+        return
 
     subscribe_to_room(code)
-    player = rooms.connect(sid, code, data.get("name"))
+    emit("room_updated", rooms.public_view(code))
 
-    # Tell everyone already here about the newcomer. include_self=False so
-    # the newcomer is not announced to itself.
-    emit("player_joined_game", _player_payload(sid, player),
+
+@socketio.on("join_game")
+def on_join_game(data):
+    """A game page is entering the world."""
+    code = rooms.clean_code(data.get("code"))
+    name = data.get("name")
+
+    player = rooms.enter_game(request.sid, code, name, config.DEFAULT_MAP)
+    if player is None:
+        _reject("That room has closed.")
+        return
+
+    subscribe_to_room(code)
+
+    # Tell the newcomer where to stand, which map to load, and who is
+    # already here. One message, so the client can start in one step.
+    emit("game_joined", {
+        "map": config.DEFAULT_MAP,
+        "you": _world_payload(player),
+        "players": [
+            _world_payload(other)
+            for other in rooms.players_in_game(code, exclude_sid=request.sid)
+        ],
+    })
+
+    emit("player_joined_game", _world_payload(player),
          to=code, include_self=False)
-
-    # Then catch the newcomer up on everyone who was already in the world.
-    for other_sid, other in rooms.others_in_room(code, sid):
-        emit("player_joined_game", _player_payload(other_sid, other), to=sid)
 
 
 @socketio.on("player_move")
 def on_player_move(data):
     """A client reported a new position; relay it to the rest of the room."""
-    player = rooms.move(request.sid, data["x"], data["y"])
+    if not isinstance(data, dict):
+        return
+
+    code, player = rooms.move(request.sid, data.get("x"), data.get("y"))
     if player is None:
         return
 
-    emit("player_moved", {"id": request.sid, "x": data["x"], "y": data["y"]},
-         to=player["code"], include_self=False)
+    emit("player_moved",
+         {"id": request.sid, "x": player["x"], "y": player["y"]},
+         to=code, include_self=False)
 
 
 @socketio.on("start_game_request")
 def on_start_game(data):
     """The host pressed Start Game; send the whole room to the game page."""
-    emit("trigger_start_game", to=str(data.get("code")))
+    player = rooms.connected_player(request.sid)
+    if player is None or not player["isHost"]:
+        # Only the host starts the game, whatever a client claims.
+        return
+
+    emit("trigger_start_game", to=rooms.room_code_of(request.sid))
 
 
 @socketio.on("disconnect")
 def on_disconnect():
-    """A client went away: drop it from the world and from its lobby."""
-    player = rooms.disconnect(request.sid)
+    """A socket went away.
+
+    The player is not removed: they may just be moving from the lobby to
+    the game page. They stop being drawn in the world, and rooms.py drops
+    them for good only if they stay gone.
+    """
+    code, player = rooms.detach(request.sid)
     if player is None:
         return
 
-    emit("player_left", {"id": request.sid}, to=player["code"])
-    rooms.remove_player(player["code"], player["name"])
+    emit("player_left", {"id": request.sid}, to=code)
+    socketio.emit("room_updated", rooms.public_view(code), to=code)

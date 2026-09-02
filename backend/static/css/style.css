@@ -104,6 +104,12 @@ li.is-me {
     cursor: pointer;
 }
 
+/* Briefly offline, or moving between pages. The server holds their place
+   for a few seconds, so show them as still here but dimmed. */
+li.is-away {
+    opacity: 0.45;
+}
+
 /* ===== Emoji picker ===== */
 
 .emoji-box {

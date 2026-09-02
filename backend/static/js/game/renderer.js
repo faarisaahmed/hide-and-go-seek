@@ -6,7 +6,7 @@
  * of the screen and the map moves underneath.
  */
 
-import { COLORS, NAME_TAG_FONT, NAME_TAG_OFFSET } from "./config.js";
+import { COLORS, EMOJI_FONT, NAME_TAG_FONT, NAME_TAG_OFFSET } from "./config.js";
 
 export function createRenderer(canvas) {
     const ctx = canvas.getContext("2d");
@@ -27,26 +27,29 @@ export function createRenderer(canvas) {
         }
     }
 
-    function drawPlayer(player, name, color) {
+    /* One player: their square, their lobby emoji, and their name. */
+    function drawPlayer(player, size, color) {
+        const x = player.x - camera.x;
+        const y = player.y - camera.y;
+
         ctx.fillStyle = color;
-        ctx.fillRect(
-            player.x - camera.x,
-            player.y - camera.y,
-            player.size,
-            player.size,
-        );
+        ctx.fillRect(x, y, size, size);
+
+        ctx.textAlign = "center";
+
+        if (player.emoji) {
+            ctx.font = EMOJI_FONT;
+            ctx.textBaseline = "middle";
+            ctx.fillText(player.emoji, x + size / 2, y + size / 2);
+            ctx.textBaseline = "alphabetic";
+        }
 
         ctx.fillStyle = COLORS.nameTag;
         ctx.font = NAME_TAG_FONT;
-        ctx.textAlign = "center";
-        ctx.fillText(
-            name,
-            player.x - camera.x + player.size / 2,
-            player.y - camera.y + player.size + NAME_TAG_OFFSET,
-        );
+        ctx.fillText(player.name, x + size / 2, y + size + NAME_TAG_OFFSET);
     }
 
-    function draw({ map, localPlayer, localName, remotePlayers }) {
+    function draw({ map, localPlayer, remotePlayers }) {
         camera.x = localPlayer.x - canvas.width / 2;
         camera.y = localPlayer.y - canvas.height / 2;
 
@@ -59,13 +62,12 @@ export function createRenderer(canvas) {
         fillRects(map.walls, COLORS.wall);
         fillRects(map.base_zones ?? [], COLORS.baseZone);
 
-        drawPlayer(localPlayer, localName, COLORS.localPlayer);
+        drawPlayer(localPlayer, localPlayer.size, COLORS.localPlayer);
 
         for (const remote of Object.values(remotePlayers)) {
-            // Remote players are drawn at the local player's size; the
-            // server only sends positions.
-            const box = { x: remote.x, y: remote.y, size: localPlayer.size };
-            drawPlayer(box, remote.name, COLORS.remotePlayer);
+            // The server sends positions only, so remotes are drawn at the
+            // same size as us.
+            drawPlayer(remote, localPlayer.size, COLORS.remotePlayer);
         }
     }
 

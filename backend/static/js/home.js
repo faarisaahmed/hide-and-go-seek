@@ -28,7 +28,7 @@ async function onCreateRoom() {
     try {
         const data = await createRoom(name);
         if (!data.success) {
-            alert("Room creation failed");
+            alert(data.message || "Room creation failed");
             return;
         }
         enterRoom(data.room_code, name);
@@ -43,15 +43,16 @@ async function onJoinRoom() {
     if (!name) return;
 
     const code = document.getElementById("roomCodeInput").value.trim();
-    if (!/^[0-9]+$/.test(code)) {
-        alert("Room code must be numbers only");
+    if (!/^[0-9]{4}$/.test(code)) {
+        alert("Room codes are 4 digits");
         return;
     }
 
     try {
         const data = await joinRoom(code, name);
         if (!data.success) {
-            alert("Room not found or name already taken");
+            // The server explains why: no such room, or the name is taken.
+            alert(data.message || "Could not join that room");
             return;
         }
         enterRoom(code, name);
