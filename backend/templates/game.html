@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Playing · Hide and Go Seek{% endblock %}
+
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}">
@@ -8,20 +10,60 @@
 {% block content %}
 <canvas id="gameCanvas"></canvas>
 
+{# Top bar: who you are this round, and how the round is going. #}
 <div class="hud">
-    <div class="hud__chip">
+    <div class="hud__chip" id="hudRole">
+        <span class="hud__badge" id="hudRoleBadge">—</span>
         <span id="hudName">—</span>
     </div>
 
-    <div class="hud__chip">
-        <span id="hudCount" class="hud__count">1</span>
-        <span>here</span>
+    <div class="hud__right">
+        <div class="hud__chip" id="hudClock" hidden>0:00</div>
+        <div class="hud__chip hud__chip--wide" id="hudTally"></div>
     </div>
 </div>
 
 {# Shown only while the connection is down. #}
-<div class="hud" id="connectionBanner" hidden style="top: 62px; justify-content: center;">
+<div class="hud" id="connectionBanner" hidden style="top: 66px; justify-content: center;">
     <div class="hud__chip hud__status">Reconnecting…</div>
+</div>
+
+{# The count. Goes near-opaque over the seeker's blacked-out canvas. #}
+<div class="countdown" id="countdown" hidden>
+    <div class="countdown__number" id="countdownNumber">20</div>
+    <div class="countdown__caption" id="countdownCaption"></div>
+</div>
+
+{# What you should be doing about it. #}
+<p class="objective" id="objective"></p>
+
+{# Confirmation that the furniture you are standing on is hiding you. #}
+<p class="stash" id="hidingNote" hidden></p>
+
+{# Sprint stamina. Sits apart from the thumb pad so it stays readable on
+   a desktop, where the pad is faded right down. #}
+<div class="stamina" id="stamina">
+    <div class="stamina__fill" id="staminaFill"></div>
+</div>
+
+{# Results, and the host's way to start another round. #}
+<div class="overlay" id="roundOverlay" hidden>
+    <div class="overlay__card">
+        <h1 class="overlay__title" id="overlayTitle">Round over</h1>
+        <p class="overlay__note" id="overlayNote"></p>
+
+        <ul class="results" id="overlayPlayers"></ul>
+
+        <button id="againButton" class="btn btn--primary btn--block" hidden>
+            Play again
+        </button>
+        <p class="hint" id="overlayHint"></p>
+        <p class="notice" id="overlayProblem"></p>
+
+        <button id="lobbyButton" class="btn btn--quiet btn--block">
+            Back to the lobby
+        </button>
+    </div>
 </div>
 
 {# Touch controls. Faded out on devices with a mouse. #}
