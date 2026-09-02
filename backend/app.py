@@ -36,4 +36,14 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    socketio.run(app, host=config.HOST, port=config.PORT, debug=config.DEBUG)
+    # allow_unsafe_werkzeug lets Flask-SocketIO use the built-in dev server.
+    # It refuses by default because Werkzeug is not meant for production —
+    # which is fine here, since this is the "run it on your laptop and
+    # play over the Wi-Fi" entrypoint. Use a real WSGI server to deploy.
+    socketio.run(
+        app,
+        host=config.HOST,
+        port=config.PORT,
+        debug=config.DEBUG,
+        allow_unsafe_werkzeug=True,
+    )
