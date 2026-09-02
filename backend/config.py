@@ -5,10 +5,14 @@ Kept in one place so gameplay numbers can be adjusted without hunting
 through the request handlers.
 """
 
-# Dev server
-HOST = "0.0.0.0"
-PORT = 5000
-DEBUG = True
+import os
+
+# Dev server. 0.0.0.0 so phones on the same Wi-Fi can reach it, not just
+# this machine. Override with HOST / PORT if 5000 is taken (macOS gives it
+# to AirPlay Receiver when that is switched on).
+HOST = os.environ.get("HOST", "0.0.0.0")
+PORT = int(os.environ.get("PORT", 5000))
+DEBUG = os.environ.get("DEBUG", "1") != "0"
 
 # Room codes are numeric so they are easy to read out loud and type on a
 # phone. Four digits gives 9000 possible codes, which is plenty for a

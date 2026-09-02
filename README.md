@@ -15,6 +15,9 @@ Then open http://localhost:5000. To play with other devices on the same
 Wi-Fi, they can open `http://<your-computer-ip>:5000` instead — the client
 talks to whatever host served the page, so no config change is needed.
 
+If port 5000 is taken (macOS hands it to AirPlay Receiver when that is on),
+run `PORT=5050 python app.py`.
+
 ## Tests
 
 ```bash
