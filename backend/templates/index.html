@@ -1,43 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
+{% extends "base.html" %}
 
-<title>Hide and Go Seek</title>
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
-
-<link rel="stylesheet"
-href="{{ url_for('static', filename='style.css') }}">
-
-</head>
-
-<body>
-
+{% block content %}
 <div class="container">
+    <h1>Hide and Go Seek</h1>
 
-<h1>Hide and Go Seek</h1>
+    <div id="menu">
+        <input id="displayName" placeholder="Display Name">
+        <button id="createRoomButton">Create New Room</button>
 
-<div id="menu">
+        <hr>
 
-<input id="displayName" placeholder="Display Name">
-
-<button onclick="createRoom()">Create New Room</button>
-
-<hr>
-
-<input id="roomCodeInput" placeholder="Room Code">
-
-<button onclick="joinRoom()">Join Room</button>
-
+        <input id="roomCodeInput" placeholder="Room Code" inputmode="numeric">
+        <button id="joinRoomButton">Join Room</button>
+    </div>
 </div>
+{% endblock %}
 
-</div>
-
-<script src="{{ url_for('static', filename='main.js') }}"></script>
-
-</body>
-</html>
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/home.js') }}"></script>
+{% endblock %}

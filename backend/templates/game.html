@@ -1,81 +1,13 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Hide and Go Seek</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
+{% extends "base.html" %}
 
-    <style>
-        body { margin: 0; overflow: hidden; background: #dbdbdb; }
-        canvas { display: block; }
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}">
+{% endblock %}
 
-        /* Unified Control Styles */
-        #controls {
-            position: fixed;
-            bottom: 30px;
-            width: 100%;
-            height: 160px;
-            pointer-events: none;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 40px;
-            box-sizing: border-box;
-            z-index: 1000;
-        }
-
-        #joystick {
-            width: 120px;
-            height: 120px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 50%;
-            position: relative;
-            pointer-events: auto;
-            border: 4px solid rgba(255,255,255,0.3);
-            touch-action: none;
-        }
-
-        #stick {
-            width: 50px;
-            height: 50px;
-            background: #333;
-            border-radius: 50%;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            margin-left: -25px;
-            margin-top: -25px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            pointer-events: none;
-        }
-
-        #buttons {
-            width: 140px;
-            height: 140px;
-            position: relative;
-            pointer-events: auto;
-            touch-action: none;
-        }
-
-        .btn { 
-            width: 48px; height: 48px; border-radius: 50%; background: #333; color: white; 
-            position: absolute; display: flex; align-items: center; justify-content: center; 
-            font-family: sans-serif; font-weight: bold; user-select: none; 
-            border: 2px solid #555; box-shadow: 0 4px 0 #111;
-        }
-        .btn:active { background: #555; transform: translateY(2px); box-shadow: 0 2px 0 #111; }
-        
-        #btnX { top: 0; left: 46px; }
-        #btnA { top: 46px; right: 0; }
-        #btnB { bottom: 0; left: 46px; background: #444; }
-        #btnY { top: 46px; left: 0; }
-    </style>
-</head>
-
-<body>
-
+{% block content %}
 <canvas id="gameCanvas"></canvas>
 
+{# Touch controls. Harmless on desktop, where keyboard input is used. #}
 <div id="controls">
     <div id="joystick">
         <div id="stick"></div>
@@ -88,66 +20,9 @@
         <div id="btnY" class="btn">Y</div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-
-<script src="{{ url_for('static', filename='game/player_controller.js') }}"></script>
-<script src="{{ url_for('static', filename='game/map_loader.js') }}"></script>
-<script src="{{ url_for('static', filename='game/physics.js') }}"></script>
-<script src="{{ url_for('static', filename='game/renderer.js') }}"></script>
-
-<script>
-// Initialize Socket
-window.socket = io(); // Changed to window.socket
-
-// Store data for all other players in the room
-let otherPlayers = {};
-
-async function startGame() {
-    // Force pull from sessionStorage (ensure this matches main.js)
-    const roomCode = sessionStorage.getItem("roomCode");
-    const playerName = sessionStorage.getItem("playerName");
-
-    // Set this globally so renderer.js can see it immediately
-    window.currentName = playerName;
-
-    // 1. Listen for new players joining
-    socket.on("player_joined_game", (data) => {
-        otherPlayers[data.id] = {
-            x: data.x,
-            y: data.y,
-            name: data.name
-        };
-        console.log(`${data.name} joined the game.`);
-    });
-
-    // 2. Listen for movement updates from others
-    socket.on("player_moved", (data) => {
-        if (!otherPlayers[data.id]) return;
-
-        // Store the NEW position as a target
-        otherPlayers[data.id].targetX = data.x;
-        otherPlayers[data.id].targetY = data.y;
-    });
-
-    // 3. Emit join event
-    socket.emit("join_game", {
-        code: roomCode,
-        name: playerName
-    });
-
-    if (window.initMobileControls) {
-        window.initMobileControls();
-    }
-    
-    if (typeof loadMap === "function") {
-        await loadMap("house1");
-    }
-    console.log("Game started and joined room:", roomCode);
-}
-
-startGame();
-</script>
-
-</body>
-</html>
+<script type="module" src="{{ url_for('static', filename='js/game/main.js') }}"></script>
+{% endblock %}
