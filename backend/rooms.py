@@ -157,6 +157,22 @@ def _new_player(room, name, is_host):
         # True once they have been placed in the world. Survives a dropped
         # socket, which is what lets a reconnect resume in place.
         "in_game": False,
+
+        # Round state, owned by game.py. "hider" / "tagger" once a round
+        # has started, None in the lobby.
+        "role": None,
+        # "free", "frozen" (tagged, waiting for a rescue) or "safe" (made
+        # it home to the base).
+        "state": "free",
+        # When a team-mate started thawing them, or None. Drives the
+        # rescue hold.
+        "rescue_since": None,
+        # Set briefly after the server moves them, so their own stale
+        # position updates cannot put them back. See game._clear_the_base.
+        "pinned_until": None,
+        # Socket ids this player is currently visible to, so the server
+        # only announces someone appearing or vanishing once.
+        "seen_by": set(),
     }
 
 
@@ -170,7 +186,8 @@ def create(host_name):
     _expire_all()
 
     code = _new_room_code()
-    room = {"players": {}, "chat": []}
+    # "game" is filled in by game.py the first time it is asked for.
+    room = {"players": {}, "chat": [], "game": None}
     _rooms[code] = room
     room["players"][_key(host_name)] = _new_player(room, host_name, is_host=True)
 
@@ -330,6 +347,9 @@ def enter_game(sid, code, name, map_name):
         player["x"], player["y"] = maps.spawn_point(map_name, index)
         player["in_game"] = True
 
+    # Nobody has been told about this socket yet, whatever the old one saw.
+    player["seen_by"] = set()
+
     return player
 
 
@@ -356,6 +376,12 @@ def detach(sid):
 
     player["sid"] = None
     player["left_at"] = time.monotonic()
+    player["seen_by"] = set()
+
+    # Nobody can see them any more, and nothing is drawing them, so drop
+    # the socket from everyone's "already told about this player" set.
+    for other in room["players"].values():
+        other["seen_by"].discard(sid)
 
     return code, player
 
@@ -413,3 +439,8 @@ def reset():
     """Drop all state. For tests."""
     _rooms.clear()
     _sid_index.clear()
+
+
+def active_codes():
+    """Every live room code. A snapshot, so callers can expire rooms."""
+    return list(_rooms)

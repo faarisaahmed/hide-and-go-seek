@@ -1,13 +1,14 @@
 /* Design tokens and shared components for the home and lobby pages.
    The game screen builds on these too: see css/game.css
 
-   The palette is a dusk theme — dark indigo with a warm "flashlight"
-   amber. It suits a game about hiding, keeps the emoji legible, and is
-   easier to look at on a phone in a dim room. */
+   The palette is a night-blue theme: a dark house lit by cold blue, with
+   cyan for anything that helps you and rose for anything that does not.
+   It keeps the emoji legible and is easy to look at on a phone in a dim
+   room, which is where this game gets played. */
 
 :root {
-    --bg-deep: #0c0f24;
-    --bg-lift: #171c3f;
+    --bg-deep: #050b1a;
+    --bg-lift: #0e1c3c;
 
     /* Panels are translucent so the background gradient shows through. */
     --surface: rgba(255, 255, 255, 0.055);
@@ -15,16 +16,19 @@
     --border: rgba(255, 255, 255, 0.11);
     --border-strong: rgba(255, 255, 255, 0.2);
 
-    --text: #eceefc;
-    --text-dim: #9ba1cc;
-    --text-faint: #6f759c;
+    --text: #e8effc;
+    --text-dim: #93a7cc;
+    --text-faint: #64789e;
 
-    --accent: #ffc75a;
-    --accent-deep: #f0a828;
-    --accent-ink: #2a1c00;
+    --accent: #4da3ff;
+    --accent-deep: #1f6ad1;
+    --accent-ink: #03101f;
 
-    --success: #58d68a;
-    --danger: #ff7b7b;
+    /* Home base cyan and seeker rose, shared with the canvas palette in
+       js/game/config.js. */
+    --safe: #2fd4c0;
+    --success: #5ee6a8;
+    --danger: #ff6b81;
 
     --radius: 14px;
     --radius-lg: 20px;
@@ -61,8 +65,8 @@ body {
     -webkit-font-smoothing: antialiased;
 
     background:
-        radial-gradient(1000px 600px at 15% -10%, #2b2160 0%, transparent 60%),
-        radial-gradient(800px 500px at 90% 0%, #123a52 0%, transparent 55%),
+        radial-gradient(1000px 600px at 15% -10%, #16336b 0%, transparent 60%),
+        radial-gradient(800px 500px at 90% 0%, #0d4a5e 0%, transparent 55%),
         linear-gradient(170deg, var(--bg-lift), var(--bg-deep) 70%);
     background-attachment: fixed;
 }
@@ -165,7 +169,7 @@ body {
 
 .field:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(255, 199, 90, 0.18);
+    box-shadow: 0 0 0 3px rgba(77, 163, 255, 0.2);
 }
 
 /* The room code: short, numeric, and worth making unmistakable. */
@@ -214,7 +218,7 @@ body {
 
 .btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(255, 199, 90, 0.4);
+    box-shadow: 0 0 0 3px rgba(77, 163, 255, 0.45);
 }
 
 .btn:disabled {
@@ -227,11 +231,11 @@ body {
     color: var(--accent-ink);
     background: linear-gradient(180deg, var(--accent), var(--accent-deep));
     border-color: transparent;
-    box-shadow: 0 6px 18px rgba(240, 168, 40, 0.28);
+    box-shadow: 0 6px 18px rgba(31, 106, 209, 0.35);
 }
 
 .btn--primary:hover {
-    background: linear-gradient(180deg, #ffd275, var(--accent));
+    background: linear-gradient(180deg, #7cbcff, var(--accent));
     border-color: transparent;
 }
 
@@ -312,8 +316,8 @@ body {
     color: var(--danger);
     text-align: center;
 
-    background: rgba(255, 123, 123, 0.1);
-    border: 1px solid rgba(255, 123, 123, 0.28);
+    background: rgba(255, 107, 129, 0.11);
+    border: 1px solid rgba(255, 107, 129, 0.3);
     border-radius: var(--radius);
 }
 
@@ -442,13 +446,13 @@ body {
 
 /* Your own row: tappable, since it opens the emoji picker. */
 .player--me {
-    background: rgba(255, 199, 90, 0.09);
-    border-color: rgba(255, 199, 90, 0.3);
+    background: rgba(77, 163, 255, 0.1);
+    border-color: rgba(77, 163, 255, 0.32);
     cursor: pointer;
 }
 
 .player--me:hover {
-    background: rgba(255, 199, 90, 0.14);
+    background: rgba(77, 163, 255, 0.16);
 }
 
 /* Mid-navigation or briefly offline. The server holds their place for a
@@ -510,7 +514,7 @@ body {
 /* The one you are wearing right now. */
 .emoji-option--mine {
     border-color: var(--accent);
-    background: rgba(255, 199, 90, 0.16);
+    background: rgba(77, 163, 255, 0.18);
     opacity: 1;
     cursor: default;
 }
@@ -614,4 +618,33 @@ body {
     flex: 1;
     min-width: 0;
     padding: 11px 14px;
+}
+
+/* ===== Rules ===== */
+
+.rules {
+    margin: 0;
+    padding-left: 20px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text-dim);
+}
+
+.rules strong {
+    color: var(--text);
+    font-weight: 700;
+}
+
+/* The two colours the game itself uses, so the words match the screen. */
+.rules__safe {
+    color: var(--safe);
+}
+
+.rules__seek {
+    color: var(--danger);
 }

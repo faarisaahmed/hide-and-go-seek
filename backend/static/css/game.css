@@ -1,5 +1,5 @@
 /* The game screen: full-bleed canvas, a light HUD, and touch controls.
-   Inherits the palette from style.css. */
+   Inherits the night-blue palette from style.css. */
 
 body {
     margin: 0;
@@ -35,6 +35,13 @@ canvas {
     pointer-events: none;
 }
 
+.hud__right {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
 .hud__chip {
     display: flex;
     align-items: center;
@@ -47,23 +54,274 @@ canvas {
     font-weight: 650;
     color: var(--text);
 
-    background: rgba(12, 15, 36, 0.72);
+    background: rgba(5, 11, 26, 0.72);
     border: 1px solid var(--border);
     border-radius: 999px;
     backdrop-filter: blur(8px);
+
+    white-space: nowrap;
 }
 
-.hud__count {
-    color: var(--accent);
+/* The round tally is the one chip long enough to need trimming on a
+   narrow phone. */
+.hud__chip--wide {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-variant-numeric: tabular-nums;
+}
+
+#hudClock {
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+}
+
+/* Your role, in the same colours the canvas uses for it. */
+.hud__badge {
+    padding: 2px 8px;
+
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+
+    color: var(--accent);
+    background: rgba(77, 163, 255, 0.14);
+    border-radius: 999px;
+}
+
+#hudRole.is-seeker .hud__badge {
+    color: var(--danger);
+    background: rgba(255, 107, 129, 0.16);
+}
+
+#hudRole.is-frozen .hud__badge {
+    color: #a9d6ff;
+    background: rgba(169, 214, 255, 0.16);
+}
+
+#hudRole.is-safe .hud__badge {
+    color: var(--safe);
+    background: rgba(47, 212, 192, 0.16);
 }
 
 /* Shown only while the socket is down, so a frozen game explains itself
    instead of just looking broken. */
 .hud__status {
     color: var(--danger);
-    border-color: rgba(255, 123, 123, 0.4);
+    border-color: rgba(255, 107, 129, 0.4);
 }
+
+/* ===== The count =====
+   Sits in the middle of the screen. While the seeker counts, the canvas
+   underneath is painted out, so this is all they have. */
+
+.countdown {
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    pointer-events: none;
+}
+
+.countdown__number {
+    font-family: var(--font);
+    font-size: clamp(76px, 26vw, 160px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.04em;
+
+    color: var(--text);
+    opacity: 0.28;
+    text-shadow: 0 8px 40px rgba(5, 11, 26, 0.8);
+
+    font-variant-numeric: tabular-nums;
+}
+
+.countdown__caption {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* The seeker is meant to be looking at nothing, so their count is the
+   one bright thing on the screen rather than a watermark. */
+.countdown.is-blindfolded .countdown__number {
+    opacity: 1;
+    color: var(--accent);
+}
+
+.countdown.is-blindfolded .countdown__caption {
+    color: var(--text-dim);
+}
+
+/* ===== Objective line ===== */
+
+.objective {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: max(58px, calc(env(safe-area-inset-top) + 46px));
+    z-index: 12;
+    margin: 0;
+
+    max-width: min(92vw, 460px);
+    padding: 8px 16px;
+
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-dim);
+
+    background: rgba(5, 11, 26, 0.66);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+
+    pointer-events: none;
+}
+
+.objective:empty {
+    display: none;
+}
+
+/* ===== "You are hidden" ===== */
+
+.stash {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(190px, calc(env(safe-area-inset-bottom) + 178px));
+    z-index: 12;
+    margin: 0;
+
+    padding: 8px 16px;
+
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--safe);
+
+    background: rgba(47, 212, 192, 0.12);
+    border: 1px solid rgba(47, 212, 192, 0.4);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+
+    pointer-events: none;
+}
+
+/* ===== Results overlay ===== */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+
+    display: grid;
+    place-items: center;
+    padding: 20px;
+
+    background: rgba(3, 7, 18, 0.78);
+    backdrop-filter: blur(6px);
+}
+
+.overlay__card {
+    width: 100%;
+    max-width: 400px;
+    padding: 24px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    background: var(--bg-lift);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+}
+
+.overlay__title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-align: center;
+}
+
+.overlay__note {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+.overlay__note:empty {
+    display: none;
+}
+
+/* ===== Round results ===== */
+
+.results {
+    list-style: none;
+    margin: 4px 0;
+    padding: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 8px 12px;
+
+    background: rgba(0, 0, 0, 0.24);
+    border-radius: var(--radius);
+}
+
+.result__emoji {
+    flex: none;
+    font-size: 19px;
+    line-height: 1;
+}
+
+.result__name {
+    flex: 1;
+    min-width: 0;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.result__state {
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+}
+
+.result__state--seeker { color: var(--danger); }
+.result__state--safe   { color: var(--safe); }
+.result__state--frozen { color: #a9d6ff; }
 
 /* ===== Touch controls =====
    The bar ignores pointer events so taps reach the canvas; the joystick
@@ -83,6 +341,14 @@ canvas {
     padding: 0 clamp(18px, 6vw, 44px);
 
     pointer-events: none;
+
+    transition: opacity 0.2s ease;
+}
+
+/* Counting, or frozen. Movement is refused by the server as well, so the
+   pad should look switched off rather than unresponsive. */
+#controls.is-locked {
+    opacity: 0.22;
 }
 
 #joystick {
@@ -113,7 +379,7 @@ canvas {
     margin-left: -28px;
     margin-top: -28px;
 
-    background: linear-gradient(180deg, #fff2d4, var(--accent));
+    background: linear-gradient(180deg, #cfe6ff, var(--accent));
     border-radius: 50%;
     box-shadow: 0 5px 16px rgba(0, 0, 0, 0.5),
                 inset 0 -2px 5px rgba(0, 0, 0, 0.18);
@@ -166,12 +432,12 @@ canvas {
     color: var(--accent-ink);
     background: linear-gradient(180deg, var(--accent), var(--accent-deep));
     border-color: transparent;
-    box-shadow: 0 4px 0 #9a6a12;
+    box-shadow: 0 4px 0 #124b8c;
 }
 
 #btnB:active,
 #btnB.is-held {
-    box-shadow: 0 1px 0 #9a6a12;
+    box-shadow: 0 1px 0 #124b8c;
 }
 
 /* Diamond layout, Switch style. */
@@ -184,10 +450,58 @@ canvas {
 @media (hover: hover) and (pointer: fine) {
     #controls {
         opacity: 0.25;
-        transition: opacity 0.2s ease;
     }
 
     #controls:hover {
         opacity: 1;
     }
+
+    #controls.is-locked:hover {
+        opacity: 0.22;
+    }
+}
+
+/* ===== Sprint stamina =====
+   Kept out of #controls so it stays legible on a desktop, where the
+   thumb pad is faded almost away. */
+
+.stamina {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(14px, calc(env(safe-area-inset-bottom) + 2px));
+    z-index: 21;
+
+    width: min(220px, 46vw);
+    height: 9px;
+    padding: 2px;
+
+    background: rgba(5, 11, 26, 0.72);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.stamina__fill {
+    height: 100%;
+    width: 100%;
+
+    background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+    border-radius: 999px;
+
+    /* Only the drain is animated; a hard cut looks like a glitch. */
+    transition: width 0.09s linear, background 0.25s ease;
+}
+
+/* Run it dry and sprint is locked off until it comes back. */
+.stamina.is-spent .stamina__fill {
+    background: linear-gradient(90deg, #8c3346, var(--danger));
+}
+
+/* Nothing to say while it is full and you are not using it. */
+.stamina.is-full {
+    opacity: 0.35;
 }

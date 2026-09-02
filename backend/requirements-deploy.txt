@@ -1,0 +1,16 @@
+# Everything in requirements.txt, plus a real web server.
+-r requirements.txt
+
+# gunicorn on its own cannot do WebSocket; the gevent-websocket worker
+# can, and Flask-SocketIO picks it up automatically. Without it every
+# client silently falls back to HTTP long-polling, which is survivable
+# on a LAN and miserable across the internet.
+gunicorn>=22.0
+gevent>=24.2
+gevent-websocket>=0.10
+
+# gevent-websocket's worker subclasses gunicorn's gevent worker, which
+# imports packaging — and nothing in the chain declares it, so the
+# deploy dies on start with ModuleNotFoundError. Pinned here because the
+# only way to find that out is to actually boot it.
+packaging>=24.0

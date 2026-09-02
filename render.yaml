@@ -1,0 +1,20 @@
+# One-click config for Render. Point Render at this repo and it reads
+# this file; nothing else needs setting up in their dashboard.
+services:
+  - type: web
+    name: hide-and-go-seek
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements-deploy.txt
+    # A single worker, deliberately. Rooms live in this process's memory
+    # (see backend/rooms.py), so a second worker would be a second,
+    # separate set of rooms that half your friends land in.
+    startCommand: >-
+      gunicorn --chdir backend
+      -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker
+      -w 1 -b 0.0.0.0:$PORT app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: DEBUG
+        value: "0"
