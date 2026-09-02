@@ -1,8 +1,16 @@
 # Hide and Go Seek
 
+**[Play it](https://hide-and-go-seek.onrender.com)** ·
+[About](https://faarisaahmed.github.io/hide-and-go-seek/)
+
 A browser-based multiplayer hide-and-seek game, played over a house. Flask
 + Socket.IO on the server, plain HTML/CSS/Canvas on the client — no build
 step required.
+
+The hosted copy is on a free plan and sleeps when nobody is playing, so a
+first visit after a quiet spell takes about thirty seconds to wake up —
+and waking up clears any rooms that were open, since rooms only ever live
+in memory.
 
 Nothing is loaded from the internet at runtime: the Socket.IO client is
 vendored in `static/vendor/` and the design uses system fonts. That way the
