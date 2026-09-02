@@ -1,15 +1,18 @@
-{# Shared page shell: <head>, fonts, and the body/script slots. #}
+{# Shared page shell: <head>, and the body/script slots. #}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+          content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0c0f24">
 
-    <title>{% block title %}Hide and Go Seek{% endblock %}</title>
+    <title>{% block title %}Hide &amp; Seek{% endblock %}</title>
 
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap">
+    {# No webfont: the design uses system fonts, so there is no external
+       request to block the first paint or to fail on a Wi-Fi network with
+       no internet access. #}
     {% block styles %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% endblock %}

@@ -1,19 +1,37 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-    <h1>Hide and Go Seek</h1>
+<main class="page page--center">
+    <header class="hero">
+        <h1 class="hero__title">Hide <span>&amp;</span> Seek</h1>
+        <p class="hero__tagline">Get your friends in a room and find a hiding spot.</p>
+    </header>
 
-    <div id="menu">
-        <input id="displayName" placeholder="Display Name">
-        <button id="createRoomButton">Create New Room</button>
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">Your name</h2>
+        </div>
+        <input id="displayName" class="field" placeholder="Who are you?"
+               maxlength="16" autocomplete="off" autocapitalize="words"
+               spellcheck="false">
+    </section>
 
-        <hr>
+    <section class="card">
+        <button id="createRoomButton" class="btn btn--primary btn--block">
+            Create a room
+        </button>
 
-        <input id="roomCodeInput" placeholder="Room Code" inputmode="numeric">
-        <button id="joinRoomButton">Join Room</button>
-    </div>
-</div>
+        <div class="divider">or join one</div>
+
+        <div class="row">
+            <input id="roomCodeInput" class="field field--code" placeholder="0000"
+                   inputmode="numeric" maxlength="4" autocomplete="off">
+            <button id="joinRoomButton" class="btn">Join</button>
+        </div>
+    </section>
+
+    <p id="messageBox" class="notice"></p>
+</main>
 {% endblock %}
 
 {% block scripts %}

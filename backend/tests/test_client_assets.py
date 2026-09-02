@@ -54,6 +54,47 @@ def test_the_default_map_exists_and_has_spawn_points():
     assert data["walls"]
 
 
+def test_elements_the_lobby_reveals_start_hidden():
+    """lobby.js toggles these; the markup has to start them off.
+
+    If the template dropped `hidden`, the emoji grid and both the host
+    button and the waiting note would all show at once on load.
+    """
+    markup = read("..", "templates", "room.html")
+
+    for element_id in ["emojiPicker", "startButton", "waitingNote"]:
+        pattern = rf'id="{element_id}"[^>]*>'
+        tag = re.search(pattern, markup, re.S)
+        assert tag, f"{element_id} missing from room.html"
+        assert "hidden" in tag.group(0), f"{element_id} does not start hidden"
+
+
+def test_pages_load_nothing_from_the_internet():
+    """The game is played over a LAN, which may have no internet.
+
+    A CDN <script> for socket.io meant that on a router with no upstream
+    connection the client never loaded and multiplayer silently died, so
+    everything is served from this app.
+    """
+    import glob
+
+    for path in glob.glob(os.path.join(os.path.dirname(STATIC), "templates", "*.html")):
+        with open(path, encoding="utf-8") as handle:
+            markup = handle.read()
+
+        for url in re.findall(r'(?:src|href)="(https?://[^"]+)"', markup):
+            raise AssertionError(f"{os.path.basename(path)} loads {url} remotely")
+
+
+def test_socket_io_is_vendored_and_served(client):
+    response = client.get("/static/vendor/socket.io.min.js")
+    assert response.status_code == 200
+
+    body = response.get_data(as_text=True)
+    assert "Socket.IO" in body
+    assert len(body) > 10000, "looks truncated"
+
+
 def test_no_hardcoded_host_in_the_client():
     # A hardcoded LAN address used to break play on any other network.
     for root, _, files in os.walk(os.path.join(STATIC, "js")):

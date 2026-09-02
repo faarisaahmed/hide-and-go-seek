@@ -1,39 +1,60 @@
 {% extends "base.html" %}
 
-{% block title %}Lobby · Hide and Go Seek{% endblock %}
+{% block title %}Lobby · Hide &amp; Seek{% endblock %}
 
 {% block content %}
-<div class="container">
-    <button id="homeButton" class="home-btn">Home</button>
+<main class="page">
+    <header class="lobby-header">
+        <button id="homeButton" class="btn btn--quiet">← Leave</button>
 
-    <h2 id="roomCodeDisplay">Room</h2>
+        <div class="room-code">
+            <span class="room-code__label">Code</span>
+            {# Tapping copies it, which is easier than reading it out. #}
+            <button id="roomCodeDisplay" class="room-code__value"
+                    title="Copy room code">----</button>
+        </div>
+    </header>
 
-    <div class="chat-container">
-        <div class="chat-toggle">
-            <span id="chatToggleIcon">▼</span>
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">Players</h2>
+            <span id="playerCount" class="pill">0</span>
         </div>
 
-        <div id="chatPanel" class="chat-panel">
-            <div id="chatBox" class="chat-box"></div>
-            <input id="chatInput" placeholder="Type message...">
-            <button id="sendChatButton">Send</button>
+        <ul id="playerList" class="players"></ul>
+        <p class="hint">Tap yourself to change your emoji</p>
+    </section>
+
+    <div id="emojiPicker" class="emoji-grid" hidden></div>
+    <p id="messageBox" class="notice"></p>
+
+    {# Only the host sees the button; everyone else sees the note. #}
+    <button id="startButton" class="btn btn--primary btn--block" hidden>
+        Start game
+    </button>
+    <p id="waitingNote" class="hint" hidden>Waiting for the host to start…</p>
+
+    <section class="chat card">
+        <button id="chatToggle" class="chat__toggle" aria-expanded="true"
+                aria-controls="chatPanel">
+            <span>Chat</span>
+            <span class="chat__caret" aria-hidden="true">▼</span>
+        </button>
+
+        <div id="chatPanel" class="chat__panel">
+            <div id="chatBox" class="chat__log"></div>
+
+            <form id="chatForm" class="chat__form">
+                <input id="chatInput" class="field" placeholder="Say something…"
+                       maxlength="200" autocomplete="off">
+                <button type="submit" class="btn">Send</button>
+            </form>
         </div>
-    </div>
-
-    <h3>Players</h3>
-    <ul id="playerList"></ul>
-
-    {# Shown by lobby.js only for the host. #}
-    <button id="startButton" style="display:none;">Start Game</button>
-
-    <div id="emojiPicker" class="emoji-box" style="display:none;"></div>
-    <div id="messageBox"></div>
-
-    <button id="refreshButton">Refresh Players</button>
-</div>
+    </section>
+</main>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/socket.io.min.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/lobby.js') }}"></script>
 {% endblock %}

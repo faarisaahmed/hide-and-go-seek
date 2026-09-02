@@ -1,185 +1,617 @@
-/* Shared styles for the home and lobby pages.
-   The game screen has its own stylesheet: css/game.css */
+/* Design tokens and shared components for the home and lobby pages.
+   The game screen builds on these too: see css/game.css
 
-/* ===== Reset ===== */
+   The palette is a dusk theme — dark indigo with a warm "flashlight"
+   amber. It suits a game about hiding, keeps the emoji legible, and is
+   easier to look at on a phone in a dim room. */
 
-* {
+:root {
+    --bg-deep: #0c0f24;
+    --bg-lift: #171c3f;
+
+    /* Panels are translucent so the background gradient shows through. */
+    --surface: rgba(255, 255, 255, 0.055);
+    --surface-hover: rgba(255, 255, 255, 0.09);
+    --border: rgba(255, 255, 255, 0.11);
+    --border-strong: rgba(255, 255, 255, 0.2);
+
+    --text: #eceefc;
+    --text-dim: #9ba1cc;
+    --text-faint: #6f759c;
+
+    --accent: #ffc75a;
+    --accent-deep: #f0a828;
+    --accent-ink: #2a1c00;
+
+    --success: #58d68a;
+    --danger: #ff7b7b;
+
+    --radius: 14px;
+    --radius-lg: 20px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+
+    /* System fonts: no network request, and they already look native on
+       every device this gets opened on. */
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+*,
+*::before,
+*::after {
     box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+html,
+body {
+    min-height: 100%;
 }
 
 body {
     margin: 0;
+    padding: 0;
+
+    font-family: var(--font);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+
+    background:
+        radial-gradient(1000px 600px at 15% -10%, #2b2160 0%, transparent 60%),
+        radial-gradient(800px 500px at 90% 0%, #123a52 0%, transparent 55%),
+        linear-gradient(170deg, var(--bg-lift), var(--bg-deep) 70%);
+    background-attachment: fixed;
+}
+
+/* ===== Layout ===== */
+
+.page {
+    width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 32px 18px 48px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* The home page is short, so it sits centred rather than clinging to the
+   top of a tall phone screen. The lobby fills the page on its own. */
+.page--center {
     min-height: 100vh;
-    overflow-x: hidden;
+    min-height: 100dvh;
+    justify-content: center;
+}
 
-    font-family: 'Playfair Display', serif;
+.hero {
     text-align: center;
-
-    background: linear-gradient(135deg, #f0f4ff, #d6e4ff);
+    padding: 18px 0 6px;
 }
 
-.container {
-    width: 95%;
-    max-width: 450px;
-    margin: auto;
-    padding: 40px 15px;
+.hero__title {
+    margin: 0;
+    font-size: clamp(34px, 11vw, 46px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
 }
 
-h1 {
-    font-size: 48px;
-    margin-bottom: 30px;
+/* The ampersand picks up the accent so the title has a focal point. */
+.hero__title span {
+    color: var(--accent);
 }
 
-/* ===== Form controls ===== */
+.hero__tagline {
+    margin: 10px 0 0;
+    color: var(--text-dim);
+    font-size: 15px;
+}
 
-/* 16px keeps mobile Safari from zooming in when an input is focused. */
-input,
-textarea {
+/* ===== Cards ===== */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+}
+
+.card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.card__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-dim);
+}
+
+/* ===== Inputs ===== */
+
+.field {
+    width: 100%;
+    padding: 14px 16px;
+
+    /* 16px keeps mobile Safari from zooming in on focus. */
     font-size: 16px;
+    font-family: inherit;
+    color: var(--text);
+
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-input {
-    width: 100%;
-    padding: 14px;
-    margin: 10px 0;
-
-    border: 1px solid #ccc;
-    border-radius: 12px;
+.field::placeholder {
+    color: var(--text-faint);
 }
 
-button {
-    width: 100%;
-    padding: 14px;
-    margin: 10px 0;
+.field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255, 199, 90, 0.18);
+}
 
-    font-size: 18px;
+/* The room code: short, numeric, and worth making unmistakable. */
+.field--code {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.32em;
+    text-align: center;
+    padding-left: 22px; /* offset the trailing letter-space */
+}
 
-    border: none;
-    border-radius: 14px;
+/* ===== Buttons ===== */
 
-    background: #4f7cff;
-    color: white;
+.btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 14px 18px;
+
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 650;
+    color: var(--text);
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
 
     cursor: pointer;
-    transition: 0.2s ease;
+    transition: transform 0.12s ease, background 0.15s ease,
+                border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-button:hover {
-    background: #6f97ff;
-    transform: scale(1.02);
+.btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
 }
 
-.home-btn {
-    position: absolute;
-    top: 15px;
-    left: 15px;
+.btn:active {
+    transform: translateY(1px);
+}
 
-    width: auto;
-    padding: 8px 16px;
+.btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 199, 90, 0.4);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn--primary {
+    color: var(--accent-ink);
+    background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+    border-color: transparent;
+    box-shadow: 0 6px 18px rgba(240, 168, 40, 0.28);
+}
+
+.btn--primary:hover {
+    background: linear-gradient(180deg, #ffd275, var(--accent));
+    border-color: transparent;
+}
+
+.btn--block {
+    width: 100%;
+}
+
+.btn--quiet {
+    padding: 9px 13px;
     font-size: 14px;
-
-    background: #ff6b6b;
+    color: var(--text-dim);
+    background: transparent;
 }
 
-.home-btn:hover {
-    background: #ff8787;
+.btn--quiet:hover {
+    color: var(--text);
+}
+
+/* ===== Divider with a label in the middle ===== */
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+
+    color: var(--text-faint);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* ===== Small pieces ===== */
+
+.row {
+    display: flex;
+    gap: 10px;
+}
+
+.row .field {
+    flex: 1;
+    min-width: 0;
+}
+
+.pill {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dim);
+
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.hint {
+    margin: 12px 0 0;
+    font-size: 13px;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+/* Errors and "emoji taken" messages. Hidden until it has something
+   to say, so it never leaves a blank gap in the layout. */
+.notice {
+    margin: 0;
+    padding: 11px 14px;
+
+    font-size: 14px;
+    color: var(--danger);
+    text-align: center;
+
+    background: rgba(255, 123, 123, 0.1);
+    border: 1px solid rgba(255, 123, 123, 0.28);
+    border-radius: var(--radius);
+}
+
+.notice:empty {
+    display: none;
+}
+
+/* ===== Lobby header ===== */
+
+.lobby-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.room-code {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 8px 8px 8px 14px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.room-code__label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-faint);
+}
+
+.room-code__value {
+    padding: 5px 12px;
+
+    font-family: var(--font-mono);
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.room-code__value:hover {
+    border-color: var(--accent);
+}
+
+/* Flipped to a tick for a moment after a successful copy. */
+.room-code__value.is-copied {
+    color: var(--success);
+    border-color: var(--success);
 }
 
 /* ===== Player list ===== */
 
-ul {
+.players {
     list-style: none;
+    margin: 0;
     padding: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-li {
-    padding: 8px;
-    font-size: 18px;
+.player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 10px 12px;
+
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+
+    transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-/* The entry for whoever is looking at the page — click it to pick an emoji. */
-li.is-me {
-    font-weight: bold;
-    text-decoration: underline;
+.player__emoji {
+    flex: none;
+    width: 38px;
+    height: 38px;
+
+    display: grid;
+    place-items: center;
+
+    font-size: 21px;
+    line-height: 1;
+
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 11px;
+}
+
+.player__name {
+    flex: 1;
+    min-width: 0;
+
+    font-size: 15px;
+    font-weight: 600;
+
+    /* Names are capped at 16 characters, but be safe on narrow phones. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player__badge {
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--accent);
+}
+
+/* Your own row: tappable, since it opens the emoji picker. */
+.player--me {
+    background: rgba(255, 199, 90, 0.09);
+    border-color: rgba(255, 199, 90, 0.3);
     cursor: pointer;
 }
 
-/* Briefly offline, or moving between pages. The server holds their place
-   for a few seconds, so show them as still here but dimmed. */
-li.is-away {
-    opacity: 0.45;
+.player--me:hover {
+    background: rgba(255, 199, 90, 0.14);
+}
+
+/* Mid-navigation or briefly offline. The server holds their place for a
+   few seconds, so show them as still here but faded. */
+.player--away {
+    opacity: 0.42;
 }
 
 /* ===== Emoji picker ===== */
 
-.emoji-box {
-    flex-wrap: wrap;
-    background: white;
-    padding: 15px;
-    border-radius: 14px;
-    margin-top: 15px;
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 8px;
+
+    padding: 14px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
 }
 
 .emoji-option {
-    display: inline-block;
-    padding: 8px;
-    font-size: 28px;
+    aspect-ratio: 1;
+
+    display: grid;
+    place-items: center;
+
+    font-size: 24px;
+
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid transparent;
+    border-radius: 12px;
     cursor: pointer;
+
+    transition: transform 0.12s ease, border-color 0.15s ease,
+                background 0.15s ease;
 }
 
-#messageBox {
-    margin-top: 10px;
-    color: rgb(233, 32, 32);
-    font-weight: bold;
+.emoji-option:hover {
+    transform: scale(1.09);
+    background: var(--surface-hover);
+    border-color: var(--accent);
+}
+
+/* Already in use by someone in the room, so it cannot be picked. */
+.emoji-option--taken {
+    opacity: 0.28;
+    cursor: not-allowed;
+}
+
+.emoji-option--taken:hover {
+    transform: none;
+    border-color: transparent;
+    background: rgba(0, 0, 0, 0.22);
+}
+
+/* The one you are wearing right now. */
+.emoji-option--mine {
+    border-color: var(--accent);
+    background: rgba(255, 199, 90, 0.16);
+    opacity: 1;
+    cursor: default;
 }
 
 /* ===== Chat ===== */
 
-.chat-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-
-    padding: 12px;
-
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.chat-toggle {
-    padding: 6px;
-    font-size: 18px;
-    text-align: center;
-    color: #444;
-
-    cursor: pointer;
-    user-select: none;
-}
-
-.chat-toggle:hover {
-    color: #000;
-}
-
-.chat-panel {
-    max-height: 300px;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-}
-
-.chat-panel.collapsed {
-    max-height: 0;
+.chat {
     padding: 0;
+    overflow: hidden;
 }
 
-.chat-box {
-    height: 120px;
+.chat__toggle {
+    width: 100%;
+    padding: 14px 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-dim);
+
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.chat__toggle:hover {
+    color: var(--text);
+}
+
+.chat__caret {
+    font-size: 11px;
+    transition: transform 0.25s ease;
+}
+
+.chat__panel {
+    max-height: 340px;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+}
+
+.chat__panel.is-collapsed {
+    max-height: 0;
+}
+
+/* Point the caret at the panel's current state. */
+.chat__panel.is-collapsed ~ .chat__toggle .chat__caret,
+.chat__toggle[aria-expanded="false"] .chat__caret {
+    transform: rotate(-90deg);
+}
+
+.chat__log {
+    height: 190px;
     overflow-y: auto;
+    padding: 4px 18px 10px;
 
-    padding: 10px;
-    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
 
-    background: white;
-    border-radius: 10px;
-    text-align: left;
+    /* Keep the newest message pinned to the bottom as the log grows. */
+    justify-content: flex-end;
+}
+
+.chat__empty {
+    color: var(--text-faint);
+    font-size: 13px;
+    text-align: center;
+    padding: 12px 0;
+}
+
+.chat__msg {
+    font-size: 14px;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.chat__author {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+/* Your own messages get a different colour so the log is scannable. */
+.chat__msg--mine .chat__author {
+    color: var(--success);
+}
+
+.chat__form {
+    display: flex;
+    gap: 8px;
+    padding: 12px 18px 16px;
+    border-top: 1px solid var(--border);
+}
+
+.chat__form .field {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 14px;
 }

@@ -45,7 +45,12 @@ def test_app_py_serves_the_home_page():
         import urllib.request
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as response:
             assert response.status == 200
-            assert "Hide and Go Seek" in response.read().decode()
+            body = response.read().decode()
+
+        # Assert on something functional rather than on wording, which is
+        # free to change with the design.
+        assert 'id="createRoomButton"' in body
+        assert "js/home.js" in body
     finally:
         proc.terminate()
         proc.wait(timeout=10)

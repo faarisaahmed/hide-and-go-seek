@@ -1,42 +1,102 @@
-/* Styles for the game screen: full-bleed canvas plus touch controls.
-   Lifted out of an inline <style> block in game.html. */
+/* The game screen: full-bleed canvas, a light HUD, and touch controls.
+   Inherits the palette from style.css. */
 
 body {
     margin: 0;
     overflow: hidden;
-    background: #dbdbdb;
+    background: var(--bg-deep);
+
+    /* A dragged thumb should steer, not scroll or trigger pull-to-refresh. */
+    overscroll-behavior: none;
+    touch-action: none;
 }
 
 canvas {
     display: block;
+    /* The canvas is sized in JS to match the device pixel ratio. */
+    width: 100vw;
+    height: 100vh;
+}
+
+/* ===== HUD ===== */
+
+.hud {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    z-index: 10;
+
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+
+    pointer-events: none;
+}
+
+.hud__chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 7px 13px;
+
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--text);
+
+    background: rgba(12, 15, 36, 0.72);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+}
+
+.hud__count {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Shown only while the socket is down, so a frozen game explains itself
+   instead of just looking broken. */
+.hud__status {
+    color: var(--danger);
+    border-color: rgba(255, 123, 123, 0.4);
 }
 
 /* ===== Touch controls =====
-   The bar itself ignores pointer events so taps land on the canvas; only
-   the joystick and button pad opt back in. */
+   The bar ignores pointer events so taps reach the canvas; the joystick
+   and button pad opt back in. */
 
 #controls {
     position: fixed;
-    bottom: 30px;
-    width: 100%;
-    height: 160px;
-    z-index: 1000;
+    left: 0;
+    right: 0;
+    bottom: max(26px, env(safe-area-inset-bottom));
+    height: 150px;
+    z-index: 20;
 
     display: flex;
+    align-items: flex-end;
     justify-content: space-between;
-    padding: 0 40px;
+    padding: 0 clamp(18px, 6vw, 44px);
 
     pointer-events: none;
 }
 
 #joystick {
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 128px;
+    height: 128px;
 
-    background: rgba(0, 0, 0, 0.2);
-    border: 4px solid rgba(255, 255, 255, 0.3);
+    background:
+        radial-gradient(circle at 50% 50%,
+                        rgba(255, 255, 255, 0.09) 0%,
+                        rgba(255, 255, 255, 0.03) 65%);
+    border: 2px solid rgba(255, 255, 255, 0.18);
     border-radius: 50%;
+    backdrop-filter: blur(6px);
 
     pointer-events: auto;
     touch-action: none;
@@ -48,56 +108,86 @@ canvas {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 50px;
-    height: 50px;
-    margin-left: -25px;
-    margin-top: -25px;
+    width: 56px;
+    height: 56px;
+    margin-left: -28px;
+    margin-top: -28px;
 
-    background: #333;
+    background: linear-gradient(180deg, #fff2d4, var(--accent));
     border-radius: 50%;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.5),
+                inset 0 -2px 5px rgba(0, 0, 0, 0.18);
 
     pointer-events: none;
 }
 
 #buttons {
     position: relative;
-    width: 140px;
-    height: 140px;
+    width: 148px;
+    height: 148px;
 
     pointer-events: auto;
     touch-action: none;
 }
 
-.btn {
+.btn-pad {
     position: absolute;
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
 
-    font-family: sans-serif;
-    font-weight: bold;
-    color: white;
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-dim);
 
-    background: #333;
-    border: 2px solid #555;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
     border-radius: 50%;
-    box-shadow: 0 4px 0 #111;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
 
     user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.08s ease, background 0.12s ease;
 }
 
-.btn:active {
-    background: #555;
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 #111;
+.btn-pad:active,
+.btn-pad.is-held {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    background: rgba(255, 255, 255, 0.16);
 }
 
-/* Diamond layout, Switch style. B is the sprint button. */
-#btnX { top: 0; left: 46px; }
-#btnY { top: 46px; left: 0; }
-#btnA { top: 46px; right: 0; }
-#btnB { bottom: 0; left: 46px; background: #444; }
+/* B is sprint, so it gets the accent and a label. */
+#btnB {
+    color: var(--accent-ink);
+    background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+    border-color: transparent;
+    box-shadow: 0 4px 0 #9a6a12;
+}
+
+#btnB:active,
+#btnB.is-held {
+    box-shadow: 0 1px 0 #9a6a12;
+}
+
+/* Diamond layout, Switch style. */
+#btnX { top: 0; left: 48px; }
+#btnY { top: 48px; left: 0; }
+#btnA { top: 48px; right: 0; }
+#btnB { bottom: 0; left: 48px; }
+
+/* Keyboard players do not need a thumb pad taking up the screen. */
+@media (hover: hover) and (pointer: fine) {
+    #controls {
+        opacity: 0.25;
+        transition: opacity 0.2s ease;
+    }
+
+    #controls:hover {
+        opacity: 1;
+    }
+}

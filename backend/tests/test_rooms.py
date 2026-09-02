@@ -273,9 +273,12 @@ def test_a_second_socket_for_the_same_player_takes_over():
 # ---------------------------------------------------------------------------
 
 def test_entering_the_game_uses_a_map_spawn_point():
+    import maps
+
+    first = maps.load("house1")["spawn_points"][0]
     code = make_room("Alice")
     player = rooms.enter_game("sid-1", code, "Alice", "house1")
-    assert (player["x"], player["y"]) == (120, 120)
+    assert (player["x"], player["y"]) == (first["x"], first["y"])
 
 
 def test_players_spawn_on_different_points():

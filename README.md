@@ -3,6 +3,10 @@
 A browser-based multiplayer hide-and-seek game. Flask + Socket.IO on the
 server, plain HTML/CSS/Canvas on the client — no build step required.
 
+Nothing is loaded from the internet at runtime: the Socket.IO client is
+vendored in `static/vendor/` and the design uses system fonts. That way the
+game works on a Wi-Fi network with no upstream connection.
+
 ## Running locally
 
 ```bash
@@ -41,6 +45,10 @@ emoji picker matching the server's pool, every page asset resolving).
    joystick and B button on touch devices. The server picks each player's
    spawn from the map's `spawn_points`, so nobody starts stacked up.
 
+Movement is in pixels per *second* and scaled by frame time, so a 120Hz
+phone and a 60Hz laptop move at the same speed, and diagonals are
+normalised so two keys are not faster than one.
+
 Players are identified by name within a room. A socket dropping — which is
 what happens when you move from the lobby to the game, or refresh — does
 not remove you: the server holds your place for a short grace period
@@ -59,7 +67,8 @@ backend/
   routes.py         HTTP endpoints (pages and room JSON API)
   events.py         Socket.IO event handlers
   static/
-    css/            style.css (home + lobby), game.css (game screen)
+    css/            style.css (tokens + shared components), game.css
+    vendor/         Socket.IO client, served locally rather than from a CDN
     js/             session.js, api.js, home.js, lobby.js
     js/game/        config, input, map_loader, physics, network,
                     renderer, and main.js which ties them together
