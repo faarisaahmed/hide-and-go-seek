@@ -261,6 +261,13 @@ function start() {
         window.location.href = "/game_page";
     });
 
+    // The server would not start the round — too few players, most
+    // likely. Say why and let them try again.
+    socket.on("start_rejected", (data) => {
+        els.message.textContent = data.message || "Could not start a round.";
+        els.startButton.disabled = false;
+    });
+
     // Anything that changes the room — a join, an emoji, a message, someone
     // leaving — arrives here, so the list stays live without polling for it.
     socket.on("room_updated", renderRoom);

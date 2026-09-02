@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Lobby · Hide &amp; Seek{% endblock %}
+{% block title %}Lobby · Hide and Go Seek{% endblock %}
 
 {% block content %}
 <main class="page">
@@ -26,6 +26,30 @@
     </section>
 
     <div id="emojiPicker" class="emoji-grid" hidden></div>
+
+    {# The rules, where people can read them before they are dropped into
+       a dark house and have to guess. #}
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">How it goes</h2>
+        </div>
+
+        <ol class="rules">
+            <li>Everyone starts on the <strong class="rules__safe">home base</strong>
+                in the middle of the house.</li>
+            <li>One player is the <strong class="rules__seek">seeker</strong>.
+                They shut their eyes and count to twenty.</li>
+            <li>Everybody else runs and hides. Stay near the base and you
+                get moved out — that is not hiding.</li>
+            <li>Tuck into furniture to vanish. The seeker has to walk up
+                and search it to find you.</li>
+            <li>Tagged players <strong>freeze</strong> on the spot. A hider
+                who is still free can stand with them to thaw them.</li>
+            <li>Hiders win by getting <strong>all</strong> of themselves back
+                onto the base. The seeker wins by freezing everyone.</li>
+        </ol>
+    </section>
+
     <p id="messageBox" class="notice"></p>
 
     {# Only the host sees the button; everyone else sees the note. #}
