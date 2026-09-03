@@ -116,10 +116,24 @@ def _hidden_in(game, player):
 # ---------------------------------------------------------------------------
 
 def _tagger(room):
-    """The seeker's record, or None if they are gone."""
+    """The seeker the round *started* with, or None if they are gone.
+
+    Only used for display. Modes that turn the tagged into hunters have
+    several seekers by the end, and this stays the one it began with, so
+    the HUD can go on saying whose round it was.
+    """
     key = _state(room)["tagger"]
     player = room["players"].get(key) if key else None
     return player if player and player["role"] == "tagger" else None
+
+
+def _taggers(room):
+    """Everyone hunting right now.
+
+    A list rather than one record, because a mode that converts the
+    tagged ends up with a houseful of them.
+    """
+    return [p for p in room["players"].values() if p["role"] == "tagger"]
 
 
 def _hiders(room):
@@ -255,6 +269,7 @@ def can_see(room, viewer, target):
     # possible; the seeker has to come and search the furniture. A frozen
     # player is always visible, so they can be found and thawed.
     if (viewer["role"] == "tagger"
+            and target["role"] == "hider"
             and rules["hiding_conceals"]
             and target["state"] == "free"
             and _hidden_in(game, target)):
@@ -380,48 +395,94 @@ def _clear_the_base(room, game, now):
 
 
 def _hunt(room, game, now):
-    """One pass of tagging, thawing, reaching home, and checking for a win."""
-    changes = set()
+    """One pass of contact, thawing, reaching home, and checking for a win."""
+    rules = _rules(game)
 
-    tagger = _tagger(room)
-    hiders = _hiders(room)
-
-    if tagger is None:
+    if not _taggers(room):
         _finish(game, None, "The seeker left the game.")
         return {"players"}
-    if not hiders:
+    if not _hiders(room):
         _finish(game, None, "Everybody hiding left the game.")
         return {"players"}
 
-    for hider in hiders:
+    changes = _contacts(room, game, rules)
+
+    if rules["rescues"]:
+        changes |= _rescues(_hiders(room), now)
+
+    changes |= _outcome(room, game, rules, now)
+    return changes
+
+
+def _contacts(room, game, rules):
+    """Hiders reaching home, and hiders a seeker has caught up with.
+
+    Re-read each pass rather than taken as an argument, because a mode
+    that converts the tagged moves players between the two lists as this
+    runs.
+    """
+    changes = set()
+
+    # A seeker whose socket is gone is not in the house to touch anyone.
+    taggers = [t for t in _taggers(room) if t["sid"] is not None]
+
+    for hider in _hiders(room):
         if hider["state"] != "free":
             continue
 
         # Home is checked first: stepping onto the base beats a tag, so
         # a dive for the door is worth trying.
-        if maps.in_base(game["map"], *_center(hider)):
+        if rules["home_is_safety"] and maps.in_base(game["map"], *_center(hider)):
             hider["state"] = "safe"
             hider["rescue_since"] = None
             changes.add("players")
-        elif tagger["sid"] is not None and _distance(tagger, hider) <= config.TAG_DISTANCE:
+            continue
+
+        if not any(_distance(t, hider) <= config.TAG_DISTANCE for t in taggers):
+            continue
+
+        hider["rescue_since"] = None
+
+        if rules["on_tag"] == "convert":
+            # The tagged join the hunt instead of stopping. Every catch is
+            # one fewer to find and one more pair of eyes looking for the
+            # rest, so the round gets faster as it goes.
+            hider["role"] = "tagger"
+            hider["state"] = "free"
+            # Their own sight lines change with their side, and so does
+            # everyone else's view of them.
+            changes.add("sight")
+        else:
             hider["state"] = "frozen"
-            hider["rescue_since"] = None
-            changes.add("players")
 
-    if _rules(game)["rescues"]:
-        changes |= _rescues(hiders, now)
-
-    # Anyone still free can change the outcome, so the round is not over.
-    present = [h for h in hiders if h["sid"] is not None]
-    if present and all(h["state"] != "free" for h in present):
-        everyone_home = all(h["state"] == "safe" for h in present)
-        _finish(game, "hiders" if everyone_home else "tagger", None)
-        changes.add("players")
-    elif now >= game["round_ends_at"]:
-        _finish(game, "tagger", "Time ran out.")
         changes.add("players")
 
     return changes
+
+
+def _outcome(room, game, rules, now):
+    """End the round if somebody has won it."""
+    # Only players who are actually here can still change the result. A
+    # hider whose phone dropped must not hold the round open.
+    hiders = [h for h in _hiders(room) if h["sid"] is not None]
+
+    if not hiders:
+        # Nobody is hiding any more. Where a tag recruits the tagged that
+        # is the seekers having taken the whole house, rather than the
+        # broken round it would be in any other mode.
+        if rules["on_tag"] == "convert":
+            _finish(game, "tagger", None)
+            return {"players"}
+    elif all(h["state"] != "free" for h in hiders):
+        everyone_home = all(h["state"] == "safe" for h in hiders)
+        _finish(game, "hiders" if everyone_home else "tagger", None)
+        return {"players"}
+
+    if now >= game["round_ends_at"]:
+        _finish(game, "tagger", "Time ran out.")
+        return {"players"}
+
+    return set()
 
 
 def _rescues(hiders, now):
@@ -529,5 +590,9 @@ def public_state(code):
             "free": sum(1 for p in hiders if p["state"] == "free"),
             "frozen": sum(1 for p in hiders if p["state"] == "frozen"),
             "safe": sum(1 for p in hiders if p["state"] == "safe"),
+            # Worth counting separately: in a mode where the tagged change
+            # sides this climbs through the round, and "one seeker" stops
+            # being a true thing to say.
+            "seekers": sum(1 for p in players if p["role"] == "tagger"),
         },
     }

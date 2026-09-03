@@ -157,3 +157,176 @@ def test_the_lobby_offers_every_mode_and_no_others(client):
 
     for mode_id in modes.ORDER:
         assert modes.MODES[mode_id]["name"] in html
+
+
+def test_the_hud_has_something_to_say_about_every_mode():
+    """A mode with no copy would quietly tell people the classic thing.
+
+    hud.js falls back to the classic lines for anything a mode does not
+    override, which is the right behaviour at runtime and exactly why a
+    missing entry would never show up as a crash — it would just tell a
+    seeker in the wrong mode to freeze people who cannot be frozen.
+    """
+    import os
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(here, "static", "js", "game", "hud.js"),
+              encoding="utf-8") as handle:
+        source = handle.read()
+
+    block = re.search(r"const OBJECTIVES = \{(.*?)\n\};", source, re.S)
+    assert block, "hud.js no longer has an OBJECTIVES table"
+
+    # Top-level keys only: the phases nested inside are indented further.
+    listed = re.findall(r"^\n?    ([a-z_]+): \{", block.group(1), re.M)
+
+    assert sorted(listed) == sorted(modes.ORDER), (
+        f"hud.js knows about {sorted(listed)}, "
+        f"the server has {sorted(modes.ORDER)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Infection
+# ---------------------------------------------------------------------------
+#
+# The tagged join the hunt instead of freezing, so the round accelerates:
+# these check that a tag moves a player between the two sides, and that
+# the win conditions follow them across.
+
+import config  # noqa: E402
+import maps  # noqa: E402
+import pytest  # noqa: E402
+
+from test_game import BASE, cast, clock, hunting, put  # noqa: E402,F401
+
+
+def infecting(clock, *names):
+    """A room mid-hunt, playing Infection."""
+    code = rooms.create(names[0])
+    for name in names[1:]:
+        rooms.add_player(code, name)
+    for name in names:
+        rooms.enter_game(f"sid-{name}", code, name, "house1")
+
+    rooms.set_mode(code, "infection")
+
+    ok, message = game.start(code)
+    assert ok, message
+    assert game.state(code)["mode"] == "infection"
+
+    game.resolve(code, force=True)              # gathering -> counting
+    clock(config.COUNTDOWN_SECONDS + 1)
+    game.resolve(code, force=True)              # counting -> hunting
+    assert game.state(code)["phase"] == "hunting"
+
+    clock(config.RELOCATE_PIN_SECONDS + 0.1)    # past the relocation pin
+    return code
+
+
+def test_a_tagged_hider_becomes_a_seeker_rather_than_freezing(clock):
+    code = infecting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    caught, safe = hiders
+    put(safe, 2200, 1500)                       # far away, still hiding
+    put(caught, 900, 900)
+    put(seeker, 900, 900)                       # right on top of them
+
+    game.resolve(code, force=True)
+
+    assert caught["role"] == "tagger"
+    assert caught["state"] == "free", "an infected player is not frozen"
+    assert game.state(code)["phase"] == "hunting", "one hider is still out"
+
+
+def test_an_infected_player_can_tag_for_themselves(clock):
+    """The point of the mode: the second seeker has to actually hunt."""
+    code = infecting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    turned, last = hiders
+    put(last, 2200, 1500)
+    put(turned, 900, 900)
+    put(seeker, 900, 900)
+    game.resolve(code, force=True)
+    assert turned["role"] == "tagger"
+
+    # The original seeker wanders off; the newly turned one does the work.
+    put(seeker, 300, 300)
+    put(turned, 2200, 1500)
+    game.resolve(code, force=True)
+
+    assert last["role"] == "tagger"
+    assert game.state(code)["winner"] == "tagger"
+
+
+def test_the_seekers_win_once_nobody_is_left_hiding(clock):
+    code = infecting(clock, "Alice", "Bob")
+    seeker, hiders = cast(code)
+
+    put(hiders[0], 900, 900)
+    put(seeker, 900, 900)
+    game.resolve(code, force=True)
+
+    state = game.state(code)
+    assert state["phase"] == "over"
+    assert state["winner"] == "tagger"
+    # Everybody was caught, so this is a win rather than an abandoned round.
+    assert state["note"] is None
+
+
+def test_infected_players_do_not_end_the_round_by_reaching_home(clock):
+    """Home is for hiders. Somebody who changed sides walking over the
+    base must not be counted as having escaped."""
+    code = infecting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    turned, last = hiders
+    put(last, 2200, 1500)
+    put(turned, 900, 900)
+    put(seeker, 900, 900)
+    game.resolve(code, force=True)
+    assert turned["role"] == "tagger"
+
+    put(turned, *BASE)
+    game.resolve(code, force=True)
+
+    assert turned["state"] == "free", "a seeker cannot be 'safe'"
+    assert game.state(code)["phase"] == "hunting"
+
+
+def test_hiders_still_win_by_getting_the_survivors_home(clock):
+    code = infecting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 300, 300)
+    for hider in hiders:
+        put(hider, *BASE)
+
+    game.resolve(code, force=True)
+    assert game.state(code)["winner"] == "hiders"
+
+
+def test_nobody_is_thawed_in_a_mode_with_nothing_frozen(clock):
+    """Rescues are switched off, and there is nothing to rescue anyway."""
+    assert modes.get("infection")["rescues"] is False
+
+    code = infecting(clock, "Alice", "Bob", "Carol")
+    _, hiders = cast(code)
+
+    for hider in hiders:
+        assert hider["state"] == "free"
+
+
+def test_a_conversion_asks_for_sight_lines_to_be_redrawn(clock):
+    """Changing sides changes who you can see and who can see you, and no
+    position update need arrive to make that true."""
+    code = infecting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(hiders[1], 2200, 1500)
+    put(hiders[0], 900, 900)
+    put(seeker, 900, 900)
+
+    assert "sight" in game.resolve(code, force=True)

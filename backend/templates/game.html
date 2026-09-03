@@ -18,6 +18,9 @@
     </div>
 
     <div class="hud__right">
+        {# Which mode, since the lobby is several minutes behind you by
+           the time the house is dark and somebody is chasing you. #}
+        <div class="hud__chip hud__chip--mode" id="hudMode" hidden></div>
         <div class="hud__chip" id="hudClock" hidden>0:00</div>
         <div class="hud__chip hud__chip--wide" id="hudTally"></div>
     </div>

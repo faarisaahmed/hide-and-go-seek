@@ -667,7 +667,8 @@ def test_public_state_reports_the_round_without_leaking_positions(clock):
     state = game.public_state(code)
     assert state["phase"] == "hunting"
     assert state["tagger"] == seeker["name"]
-    assert state["tally"] == {"hiders": 2, "free": 1, "frozen": 0, "safe": 1}
+    assert state["tally"] == {"hiders": 2, "free": 1, "frozen": 0, "safe": 1,
+                              "seekers": 1}
     assert state["roundSecondsLeft"] <= config.ROUND_SECONDS
 
     for player in state["players"]:

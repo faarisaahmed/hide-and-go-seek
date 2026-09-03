@@ -570,3 +570,10 @@ canvas {
     text-transform: uppercase;
     letter-spacing: 0.07em;
 }
+
+/* The mode chip sits with the clock, quieter than it: useful to glance
+   at, not something to watch. */
+.hud__chip--mode {
+    color: var(--text-dim);
+    font-weight: 600;
+}
