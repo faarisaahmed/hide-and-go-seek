@@ -3,6 +3,7 @@
 
 from flask import Blueprint, jsonify, render_template, request
 
+import modes
 import rooms
 from extensions import socketio
 
@@ -29,7 +30,10 @@ def home():
 
 @bp.route("/room_page")
 def room_page():
-    return render_template("room.html")
+    # The mode list is rendered into the page rather than fetched, so it
+    # cannot drift from the server's own and there is one less request
+    # before the lobby is usable.
+    return render_template("room.html", modes=modes.listing())
 
 
 @bp.route("/game_page")
@@ -81,6 +85,32 @@ def change_emoji():
     ok, message = rooms.set_emoji(code, data.get("name"), data.get("emoji"))
     if not ok:
         return jsonify({"success": False, "message": message})
+
+    _push_room(code)
+    return jsonify({"success": True})
+
+
+@bp.route("/set_mode", methods=["POST"])
+def set_mode():
+    """The host chose a game mode.
+
+    Host-only, checked here rather than trusted from the client: the
+    lobby hides the picker from everyone else, but hiding a control is
+    not the same as enforcing it.
+    """
+    data = _body()
+    code = data.get("code")
+
+    if rooms.get(code) is None:
+        return jsonify({"success": False, "message": "Room not found"}), 404
+
+    if not rooms.is_host(code, data.get("name")):
+        return jsonify({"success": False,
+                        "message": "Only the host can change the mode"}), 403
+
+    ok, message = rooms.set_mode(code, data.get("mode"))
+    if not ok:
+        return jsonify({"success": False, "message": message}), 400
 
     _push_room(code)
     return jsonify({"success": True})

@@ -34,6 +34,10 @@ export function changeEmoji(code, name, emoji) {
     return postJSON("/change_emoji", { code, name, emoji });
 }
 
+export function setMode(code, name, mode) {
+    return postJSON("/set_mode", { code, name, mode });
+}
+
 export function sendChat(code, name, message) {
     return postJSON("/send_chat", { code, name, message });
 }
