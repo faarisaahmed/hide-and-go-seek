@@ -85,6 +85,21 @@ _MODES = [
         # before the clock was.
         "round_seconds": 150,
     },
+    {
+        "id": "juggernaut",
+        "name": "Juggernaut",
+        "blurb": "No hiding and no rescues. One seeker, a short clock, and "
+                 "a straight run for the base.",
+        # Furniture is just furniture. Nothing to search, nowhere to wait
+        # it out — the only thing between you and the base is the seeker.
+        "hiding_conceals": False,
+        # Tagged is out. Without anywhere to hide, a thawed player would
+        # be caught again within seconds of standing up.
+        "rescues": False,
+        # Short on purpose. A pure chase is exhausting rather than tense
+        # once it has gone on for minutes.
+        "round_seconds": 100,
+    },
 ]
 
 DEFAULT_MODE = "classic"

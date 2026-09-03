@@ -330,3 +330,119 @@ def test_a_conversion_asks_for_sight_lines_to_be_redrawn(clock):
     put(seeker, 900, 900)
 
     assert "sight" in game.resolve(code, force=True)
+
+
+# ---------------------------------------------------------------------------
+# Juggernaut
+# ---------------------------------------------------------------------------
+#
+# A chase rather than a search: furniture hides nobody, a tag is final,
+# and the only thing worth doing is running for the base.
+
+def playing(clock, mode, *names):
+    """A room mid-hunt, in ``mode``."""
+    code = rooms.create(names[0])
+    for name in names[1:]:
+        rooms.add_player(code, name)
+    for name in names:
+        rooms.enter_game(f"sid-{name}", code, name, "house1")
+
+    ok, message = rooms.set_mode(code, mode)
+    assert ok, message
+
+    ok, message = game.start(code)
+    assert ok, message
+
+    game.resolve(code, force=True)              # gathering -> counting
+    clock(config.COUNTDOWN_SECONDS + 1)
+    game.resolve(code, force=True)              # counting -> hunting
+    assert game.state(code)["phase"] == "hunting"
+
+    clock(config.RELOCATE_PIN_SECONDS + 0.1)    # past the relocation pin
+    return code
+
+
+# Far enough that the seeker is plainly not searching the furniture, near
+# enough that they can still see that far in this mode.
+WATCHING_FROM = 280
+
+
+def _seeker_watching_the_wardrobe(clock, mode):
+    """A hider tucked in the wardrobe, with the seeker across the room."""
+    from test_game import hiding_spot
+
+    code = playing(clock, mode, "Alice", "Bob")
+    seeker, hiders = cast(code)
+
+    spot_x, spot_y = hiding_spot("wardrobe")
+    put(hiders[0], spot_x, spot_y)
+    put(seeker, spot_x - WATCHING_FROM, spot_y)
+
+    return rooms.get(code), seeker, hiders[0]
+
+
+def test_furniture_hides_nobody_from_the_seeker(clock):
+    """The whole point of the mode: the wardrobe is only a wardrobe."""
+    assert config.SEARCH_DISTANCE < WATCHING_FROM
+    assert WATCHING_FROM < modes.get("juggernaut")["vision_radius"]
+
+    room, seeker, hider = _seeker_watching_the_wardrobe(clock, "juggernaut")
+    assert game.can_see(room, seeker, hider)
+
+
+def test_the_same_hider_would_be_concealed_in_classic(clock):
+    """The mirror of the test above, so it is checking the mode rather
+    than an accident of where these two happen to be standing."""
+    room, seeker, hider = _seeker_watching_the_wardrobe(clock, "classic")
+    assert not game.can_see(room, seeker, hider)
+
+
+def test_a_caught_player_stays_caught(clock):
+    """No rescues: standing over a frozen team-mate does nothing."""
+    code = playing(clock, "juggernaut", "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    caught, friend = hiders
+    put(caught, 900, 900)
+    put(seeker, 900, 900)
+    put(friend, 2200, 1500)
+    game.resolve(code, force=True)
+    assert caught["state"] == "frozen"
+
+    # A friend stands with them for far longer than a thaw would take.
+    put(seeker, 300, 300)
+    put(friend, 900, 900)
+    game.resolve(code, force=True)
+    clock(config.RESCUE_HOLD_SECONDS * 3)
+    game.resolve(code, force=True)
+
+    assert caught["state"] == "frozen", "nobody should have been thawed"
+    assert caught["rescue_since"] is None
+
+
+def test_the_clock_is_shorter_than_classic():
+    """A pure chase is tiring rather than tense if it runs on."""
+    assert (modes.get("juggernaut")["round_seconds"]
+            < modes.get("classic")["round_seconds"])
+
+
+def test_reaching_home_still_wins_it(clock):
+    code = playing(clock, "juggernaut", "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 300, 300)
+    for hider in hiders:
+        put(hider, *BASE)
+
+    game.resolve(code, force=True)
+    assert game.state(code)["winner"] == "hiders"
+
+
+def test_the_client_is_told_this_mode_hides_nobody(clock):
+    """The renderer stops drawing a search ring and the HUD stops saying
+    "hidden" off the back of this, so it has to actually be sent."""
+    code = playing(clock, "juggernaut", "Alice", "Bob")
+    rules = game.public_state(code)["rules"]
+
+    assert rules["hidingConceals"] is False
+    assert rules["visionRadius"] == modes.get("juggernaut")["vision_radius"]

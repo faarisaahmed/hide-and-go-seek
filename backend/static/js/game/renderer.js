@@ -28,7 +28,6 @@ import {
     ROOM_LABEL_FONT,
     SEARCH_DISTANCE,
     TILE_SIZE,
-    VISION_RADIUS,
 } from "./config.js";
 import { hideSpotAt } from "./map_loader.js";
 import { getRound, playerNamed } from "./round.js";
@@ -393,15 +392,20 @@ export function createRenderer(canvas) {
     }
 
     /* The seeker's own screen shows how close they have to be to turn
-     * out a hiding spot. */
+     * out a hiding spot. Pointless in a mode where furniture hides
+     * nobody, and drawing it there would promise a mechanic that is
+     * switched off. */
     function drawSearchRing(round, you) {
         if (you.role !== "tagger" || round.phase !== "hunting") return;
+        if (!round.rules.hidingConceals) return;
         ring(you.x + you.size / 2, you.y + you.size / 2, SEARCH_DISTANCE, COLORS.searchRing);
     }
 
     /* The hiding spot the local player is tucked into, outlined so they
      * can tell that they are actually in it. */
-    function drawOwnHidingSpot(map, you) {
+    function drawOwnHidingSpot(map, round, you) {
+        if (!round.rules.hidingConceals) return;
+
         const spot = hideSpotAt(map, you.x + you.size / 2, you.y + you.size / 2);
         if (!spot) return;
 
@@ -530,12 +534,17 @@ export function createRenderer(canvas) {
      * blacking out means you can still find your way to the kitchen in
      * the dark, which is the bit that feels like hide and seek.
      */
-    function drawDarkness(you) {
+    function drawDarkness(round, you) {
         const cx = screenX(you.x + you.size / 2);
         const cy = screenY(you.y + you.size / 2);
 
+        // The mode's reach, not the config's: the server stops sending
+        // people at this distance, so drawing a wider circle of light
+        // would just be a ring of floor nobody is ever in.
+        const reach = round.rules.visionRadius;
+
         const gradient = ctx.createRadialGradient(
-            cx, cy, VISION_RADIUS * 0.5, cx, cy, VISION_RADIUS,
+            cx, cy, reach * 0.5, cx, cy, reach,
         );
         gradient.addColorStop(0, "rgba(3, 6, 14, 0)");
         gradient.addColorStop(1, COLORS.darkness);
@@ -616,7 +625,7 @@ export function createRenderer(canvas) {
         drawRoomLabels(map);
         drawWalls(map);
 
-        drawOwnHidingSpot(map, localPlayer);
+        drawOwnHidingSpot(map, round, localPlayer);
         drawNoHideRing(map, round, localPlayer);
         drawSearchRing(round, localPlayer);
 
@@ -640,7 +649,7 @@ export function createRenderer(canvas) {
         if (round.phase === "counting" && localPlayer.role === "tagger") {
             drawBlindfold();
         } else if (round.phase === "counting" || round.phase === "hunting") {
-            drawDarkness(localPlayer);
+            drawDarkness(round, localPlayer);
         }
 
         drawHomeCompass(map, round, localPlayer);
