@@ -137,6 +137,12 @@
 
   figure img {
       width: 100%;
+      /* The width/height attributes on the tag are there to reserve the
+         space before the image loads, but they also arrive as a
+         presentational hint of height: 1054px. Without this the picture
+         is drawn full width and full natural height at once, i.e. twice
+         as tall as it should be. */
+      height: auto;
       display: block;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
