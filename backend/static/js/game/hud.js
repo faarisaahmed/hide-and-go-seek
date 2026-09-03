@@ -99,6 +99,17 @@ const OBJECTIVES = {
             hider: "Get home. Every catch puts another seeker in the house.",
         },
     },
+
+    juggernaut: {
+        counting: {
+            hider: "Run! There is nowhere to hide in this one.",
+        },
+        hunting: {
+            tagger: "Run them down. Nothing in this house hides anybody.",
+            frozen: "Caught. No thawing in this one — sit it out.",
+            hider: "Straight home. The furniture will not save you.",
+        },
+    },
 };
 
 /* A line for this mode, or the classic one it did not bother to change. */
@@ -240,6 +251,7 @@ function drawCountdown(round, me) {
  * doing something for you. */
 function drawHidingNote(map, localPlayer, round, me) {
     const eligible = round.phase === "hunting"
+        && round.rules.hidingConceals
         && me?.role === "hider"
         && me?.state === "free";
 

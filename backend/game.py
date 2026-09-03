@@ -577,6 +577,16 @@ def public_state(code):
         "phase": game["phase"],
         "mode": rules["id"],
         "modeName": rules["name"],
+        # The numbers that vary by mode, so the client draws the round it
+        # is actually in rather than the one config.py describes. The
+        # server still decides everything these affect; sending them only
+        # stops the drawing disagreeing with the ruling.
+        "rules": {
+            "visionRadius": rules["vision_radius"],
+            "hidingConceals": rules["hiding_conceals"],
+            "homeIsSafety": rules["home_is_safety"],
+            "coneDegrees": rules["cone_degrees"],
+        },
         # Counted down by the client from when it arrives, so the clock
         # keeps ticking between broadcasts.
         "secondsLeft": _seconds_left(game["phase_ends_at"], now),
