@@ -7,7 +7,7 @@
  * safety net for a missed push.
  */
 
-import { changeEmoji, fetchRoom, sendChat } from "./api.js";
+import { changeEmoji, fetchRoom, sendChat, setMode } from "./api.js";
 import { goHome, requireSession } from "./session.js";
 
 /* Emoji a player can choose from. Must stay in step with EMOJI_POOL in
@@ -26,6 +26,10 @@ let socket;
 /* The last room we rendered, so the emoji picker knows what is taken. */
 let currentRoom = null;
 
+/* Whether we are the host, which decides both the Start button and
+ * whether the mode picker does anything. */
+let amHost = false;
+
 const els = {
     roomCode: document.getElementById("roomCodeDisplay"),
     playerList: document.getElementById("playerList"),
@@ -33,6 +37,8 @@ const els = {
     startButton: document.getElementById("startButton"),
     waitingNote: document.getElementById("waitingNote"),
     emojiPicker: document.getElementById("emojiPicker"),
+    modePicker: document.getElementById("modePicker"),
+    modeNote: document.getElementById("modeNote"),
     message: document.getElementById("messageBox"),
     chatToggle: document.getElementById("chatToggle"),
     chatPanel: document.getElementById("chatPanel"),
@@ -91,9 +97,43 @@ function renderPlayers(players) {
     els.playerCount.textContent = players.length;
 
     const me = players.find((p) => p.name === session.name);
-    const amHost = Boolean(me && me.isHost);
+    amHost = Boolean(me && me.isHost);
     els.startButton.hidden = !amHost;
     els.waitingNote.hidden = amHost;
+}
+
+/* =========================
+ * Mode picker
+ * ========================= */
+
+/*
+ * The buttons themselves are rendered by the server, from the same list
+ * the rules are read from, so this only ever marks one as chosen and
+ * decides whether pressing them does anything.
+ */
+function renderModes(mode) {
+    for (const button of els.modePicker.querySelectorAll(".mode")) {
+        button.classList.toggle("is-selected", button.dataset.mode === mode);
+        button.classList.toggle("is-locked", !amHost);
+        button.disabled = !amHost;
+    }
+
+    // Everybody else is told why the list does not respond, rather than
+    // being left to press it and wonder.
+    els.modeNote.hidden = amHost;
+}
+
+async function pickMode(mode) {
+    if (!amHost) return;
+
+    const result = await setMode(session.code, session.name, mode);
+    if (!result.success) {
+        els.message.textContent = result.message || "Could not change the mode.";
+        return;
+    }
+
+    els.message.textContent = "";
+    // The server pushes room_updated to everyone, including us.
 }
 
 function renderChat(messages) {
@@ -131,6 +171,8 @@ function renderRoom(room) {
 
     currentRoom = room;
     renderPlayers(room.players);
+    // After renderPlayers, which is what works out whether we are the host.
+    renderModes(room.mode);
     renderChat(room.chat);
 
     // Keep an open picker in step with who has taken what.
@@ -251,6 +293,10 @@ function start() {
     els.roomCode.addEventListener("click", copyRoomCode);
     els.chatForm.addEventListener("submit", onSendChat);
     els.chatToggle.addEventListener("click", toggleChat);
+
+    for (const button of els.modePicker.querySelectorAll(".mode")) {
+        button.addEventListener("click", () => pickMode(button.dataset.mode));
+    }
     els.startButton.addEventListener("click", () => {
         els.startButton.disabled = true;
         socket.emit("start_game_request", { code: session.code });

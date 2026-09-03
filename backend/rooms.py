@@ -18,6 +18,7 @@ import time
 
 import config
 import maps
+import modes
 
 # code -> room. Insertion-ordered, which is how we know who joined first
 # when a new host has to be picked.
@@ -187,7 +188,11 @@ def create(host_name):
 
     code = _new_room_code()
     # "game" is filled in by game.py the first time it is asked for.
-    room = {"players": {}, "chat": [], "game": None}
+    # "mode" is what the host has selected in the lobby; the round takes a
+    # copy of it when it starts, so changing it mid-hunt cannot rewrite
+    # the rules of a round already being played.
+    room = {"players": {}, "chat": [], "game": None,
+            "mode": modes.DEFAULT_MODE}
     _rooms[code] = room
     room["players"][_key(host_name)] = _new_player(room, host_name, is_host=True)
 
@@ -219,7 +224,36 @@ def public_view(code):
             for p in room["players"].values()
         ],
         "chat": room["chat"],
+        "mode": mode_of(room),
     }
+
+
+def mode_of(room):
+    """The mode a room is set to.
+
+    Read through a helper because rooms outlive code changes: one created
+    before a mode was added, or by an older path that did not set the key,
+    still has to answer something playable.
+    """
+    chosen = room.get("mode")
+    return chosen if modes.is_mode(chosen) else modes.DEFAULT_MODE
+
+
+def set_mode(code, mode_id):
+    """Point a room at a mode. Returns ``(ok, message)``.
+
+    The caller checks that it was the host asking; this only checks that
+    the mode exists, since the id comes from a client.
+    """
+    room = get(code)
+    if room is None:
+        return False, "Room not found"
+
+    if not modes.is_mode(mode_id):
+        return False, "No such game mode"
+
+    room["mode"] = mode_id
+    return True, None
 
 
 def add_player(code, name):

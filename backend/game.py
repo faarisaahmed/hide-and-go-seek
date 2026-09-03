@@ -28,6 +28,7 @@ import time
 
 import config
 import maps
+import modes
 import rooms
 
 # Nobody moves while the last clients are still loading in.
@@ -48,6 +49,10 @@ def _new_state():
         # in a row when there is a choice.
         "last_tagger": None,
         "map": config.DEFAULT_MAP,
+        # Copied from the room when the round starts, so that the host
+        # changing the lobby's selection cannot rewrite the rules of a
+        # hunt that is already under way.
+        "mode": modes.DEFAULT_MODE,
         # Deadline for the current phase, and for the hunt as a whole.
         "phase_ends_at": None,
         "round_ends_at": None,
@@ -72,6 +77,11 @@ def _state(room):
     if room.get("game") is None:
         room["game"] = _new_state()
     return room["game"]
+
+
+def _rules(game):
+    """The mode's answers for the round in progress. See :mod:`modes`."""
+    return modes.get(game["mode"])
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +164,7 @@ def start(code):
         phase="gathering",
         tagger=tagger,
         map=config.DEFAULT_MAP,
+        mode=rooms.mode_of(room),
         phase_ends_at=_now() + config.GATHER_SECONDS,
         round_ends_at=None,
         winner=None,
@@ -234,14 +245,17 @@ def can_see(room, viewer, target):
     if phase == "counting" and viewer["role"] == "tagger":
         return False
 
+    rules = _rules(game)
+
     distance = _distance(viewer, target)
-    if distance > config.VISION_RADIUS:
+    if distance > rules["vision_radius"]:
         return False
 
     # Team-mates can see each other hiding, which is what makes rescues
     # possible; the seeker has to come and search the furniture. A frozen
     # player is always visible, so they can be found and thawed.
     if (viewer["role"] == "tagger"
+            and rules["hiding_conceals"]
             and target["state"] == "free"
             and _hidden_in(game, target)):
         return distance <= config.SEARCH_DISTANCE
@@ -330,7 +344,7 @@ def _begin_hunting(room, game, now):
 
     game["phase"] = "hunting"
     game["phase_ends_at"] = None
-    game["round_ends_at"] = now + config.ROUND_SECONDS
+    game["round_ends_at"] = now + _rules(game)["round_seconds"]
 
 
 def _clear_the_base(room, game, now):
@@ -394,7 +408,8 @@ def _hunt(room, game, now):
             hider["rescue_since"] = None
             changes.add("players")
 
-    changes |= _rescues(hiders, now)
+    if _rules(game)["rescues"]:
+        changes |= _rescues(hiders, now)
 
     # Anyone still free can change the outcome, so the round is not over.
     present = [h for h in hiders if h["sid"] is not None]
@@ -495,8 +510,12 @@ def public_state(code):
 
     hiders = [p for p in players if p["role"] == "hider"]
 
+    rules = _rules(game)
+
     return {
         "phase": game["phase"],
+        "mode": rules["id"],
+        "modeName": rules["name"],
         # Counted down by the client from when it arrives, so the clock
         # keeps ticking between broadcasts.
         "secondsLeft": _seconds_left(game["phase_ends_at"], now),

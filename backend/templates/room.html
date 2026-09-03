@@ -27,6 +27,26 @@
 
     <div id="emojiPicker" class="emoji-grid" hidden></div>
 
+    {# The mode. Rendered from the server's own list so the two cannot
+       drift, and shown to everybody: only the host can change it, but
+       everybody needs to know what they are about to play. #}
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">Mode</h2>
+        </div>
+
+        <div id="modePicker" class="modes">
+            {% for mode in modes %}
+            <button type="button" class="mode" data-mode="{{ mode.id }}">
+                <span class="mode__name">{{ mode.name }}</span>
+                <span class="mode__blurb">{{ mode.blurb }}</span>
+            </button>
+            {% endfor %}
+        </div>
+
+        <p id="modeNote" class="hint" hidden>The host picks the mode.</p>
+    </section>
+
     {# The rules, where people can read them before they are dropped into
        a dark house and have to guess. #}
     <section class="card">
