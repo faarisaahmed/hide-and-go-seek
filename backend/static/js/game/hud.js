@@ -21,6 +21,7 @@ const els = {
     name: document.getElementById("hudName"),
     tally: document.getElementById("hudTally"),
     clock: document.getElementById("hudClock"),
+    mode: document.getElementById("hudMode"),
 
     countdown: document.getElementById("countdown"),
     countdownNumber: document.getElementById("countdownNumber"),
@@ -64,11 +65,53 @@ function setClass(element, className, on) {
     element.classList.toggle(className, on);
 }
 
-/* ===== What to tell the player to do ===== */
+/* ===== What to tell the player to do =====
+ *
+ * Every mode is played in the same house, so most of what the HUD says
+ * is the same in all of them. Only the lines that genuinely differ are
+ * written down per mode; anything a mode leaves out falls through to
+ * classic, which is why adding a mode here is a few strings rather than
+ * another arm of a switch.
+ *
+ * The keys are the mode ids from the server's modes.py, and test_modes.py
+ * checks that neither list has grown an entry the other has never heard
+ * of — a mode with no copy would silently tell people to do the wrong
+ * thing, which is worse than one that fails a test.
+ */
+
+const OBJECTIVES = {
+    classic: {
+        counting: {
+            tagger: "Eyes shut. Count it out.",
+            hider: "Run! Get well clear of the base, then hide.",
+        },
+        hunting: {
+            tagger: "Search the house. Touch a hider to freeze them.",
+            frozen: "Frozen. Sit tight — a free hider can thaw you.",
+            safe: "You made it home. Now the rest have to.",
+            hider: "Get back to the base — or go and thaw a frozen friend.",
+        },
+    },
+
+    infection: {
+        hunting: {
+            tagger: "Hunt. Everyone you touch joins you.",
+            hider: "Get home. Every catch puts another seeker in the house.",
+        },
+    },
+};
+
+/* A line for this mode, or the classic one it did not bother to change. */
+function line(mode, phase, key) {
+    return OBJECTIVES[mode]?.[phase]?.[key]
+        ?? OBJECTIVES.classic[phase]?.[key]
+        ?? "";
+}
 
 function objectiveFor(round, me) {
     const role = me?.role;
     const state = me?.state;
+    const mode = round.mode;
 
     switch (round.phase) {
         case "lobby":
@@ -76,14 +119,12 @@ function objectiveFor(round, me) {
         case "gathering":
             return "Everyone to the base. Hold still…";
         case "counting":
-            return role === "tagger"
-                ? "Eyes shut. Count it out."
-                : "Run! Get well clear of the base, then hide.";
+            return line(mode, "counting", role === "tagger" ? "tagger" : "hider");
         case "hunting":
-            if (role === "tagger") return "Search the house. Touch a hider to freeze them.";
-            if (state === "frozen") return "Frozen. Sit tight — a free hider can thaw you.";
-            if (state === "safe") return "You made it home. Now the rest have to.";
-            return "Get back to the base — or go and thaw a frozen friend.";
+            if (role === "tagger") return line(mode, "hunting", "tagger");
+            if (state === "frozen") return line(mode, "hunting", "frozen");
+            if (state === "safe") return line(mode, "hunting", "safe");
+            return line(mode, "hunting", "hider");
         default:
             return "";
     }
@@ -91,14 +132,23 @@ function objectiveFor(round, me) {
 
 function outcomeTitle(round) {
     if (round.winner === "hiders") return "Hiders win";
-    if (round.winner === "tagger") return `${round.tagger || "The seeker"} wins`;
-    return "Round over";
+    if (round.winner !== "tagger") return "Round over";
+
+    // In a mode where the tagged change sides, naming the player who
+    // started it as the winner is wrong by the end — most of the room is
+    // seeking by then.
+    if (round.mode === "infection") return "The seekers win";
+    return `${round.tagger || "The seeker"} wins`;
 }
 
 function outcomeNote(round) {
     if (round.note) return round.note;
     if (round.winner === "hiders") return "Everybody made it home.";
-    if (round.winner === "tagger") return "Nobody left to find.";
+    if (round.winner === "tagger") {
+        return round.mode === "infection"
+            ? "Everybody was caught in the end."
+            : "Nobody left to find.";
+    }
     return "";
 }
 
@@ -126,9 +176,25 @@ function drawTally(round) {
         return;
     }
 
-    const { hiders, frozen, safe } = round.tally;
+    const { hiders, frozen, safe, seekers } = round.tally;
+
+    // Naming the seeker is the useful thing while there is one of them.
+    // Once the tagged start changing sides it is the count that matters,
+    // and "Alice seeking" would be quietly false.
+    if (round.mode === "infection") {
+        setText(els.tally, `${seekers} seeking · ${hiders - safe} still hiding · ${safe} home`);
+        return;
+    }
+
     const seeking = round.tagger ? `${round.tagger} seeking` : "no seeker";
     setText(els.tally, `${seeking} · ${safe}/${hiders} home · ${frozen} frozen`);
+}
+
+/* The mode, once there is a round to have one. */
+function drawMode(round) {
+    const playing = round.phase !== "lobby";
+    setHidden(els.mode, !playing);
+    if (playing) setText(els.mode, round.modeName);
 }
 
 function drawClock(round) {
@@ -293,6 +359,7 @@ export function drawHud({ map, localPlayer, myName }) {
 
     drawRoleChip(round, me);
     drawTally(round);
+    drawMode(round);
     drawClock(round);
     drawCountdown(round, me);
     drawHidingNote(map, localPlayer, round, me);

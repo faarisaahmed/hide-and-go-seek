@@ -9,6 +9,10 @@
 
 const round = {
     phase: "lobby",
+    /* Which mode the server started this round in. The rules are its
+     * business; the client only needs it to say the right things. */
+    mode: "classic",
+    modeName: "Classic",
     tagger: null,
     winner: null,
     note: null,
@@ -30,6 +34,8 @@ export function applyState(state) {
     if (!state) return;
 
     round.phase = state.phase;
+    round.mode = state.mode ?? round.mode;
+    round.modeName = state.modeName ?? round.modeName;
     round.tagger = state.tagger;
     round.winner = state.winner;
     round.note = state.note;

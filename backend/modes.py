@@ -72,6 +72,19 @@ _MODES = [
         "blurb": "One seeker. Tagged players freeze until a team-mate "
                  "thaws them. Everybody has to get home.",
     },
+    {
+        "id": "infection",
+        "name": "Infection",
+        "blurb": "Get tagged and you join the seekers. The house fills up "
+                 "with them, so the last one hiding is in real trouble.",
+        "on_tag": "convert",
+        # Nobody is ever frozen, so there is nothing to thaw.
+        "rescues": False,
+        # Shorter, because the hunt accelerates on its own: every catch
+        # adds a hunter, and a full-length round would be over long
+        # before the clock was.
+        "round_seconds": 150,
+    },
 ]
 
 DEFAULT_MODE = "classic"
