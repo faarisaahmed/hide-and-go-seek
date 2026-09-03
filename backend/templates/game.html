@@ -46,6 +46,23 @@
     <div class="stamina__fill" id="staminaFill"></div>
 </div>
 
+{# What the keys are. A touch player can see a joystick and a B button, so
+   they find out by looking; a keyboard player was never told anything, and
+   people were finishing whole rounds without discovering that Shift runs.
+   Shown only on devices with a keyboard, and only until you have used it. #}
+<div class="keyhint" id="keyHint">
+    <span class="keyhint__group">
+        <kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd>
+        <span class="keyhint__or">or</span>
+        <kbd class="kbd">&uarr;</kbd><kbd class="kbd">&larr;</kbd><kbd class="kbd">&darr;</kbd><kbd class="kbd">&rarr;</kbd>
+        <span class="keyhint__label">move</span>
+    </span>
+    <span class="keyhint__group">
+        <kbd class="kbd kbd--wide">Shift</kbd>
+        <span class="keyhint__label">run</span>
+    </span>
+</div>
+
 {# Results, and the host's way to start another round. #}
 <div class="overlay" id="roundOverlay" hidden>
     <div class="overlay__card">

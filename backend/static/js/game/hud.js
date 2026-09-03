@@ -30,6 +30,7 @@ const els = {
     hidingNote: document.getElementById("hidingNote"),
     stamina: document.getElementById("stamina"),
     staminaFill: document.getElementById("staminaFill"),
+    keyHint: document.getElementById("keyHint"),
 
     overlay: document.getElementById("roundOverlay"),
     overlayTitle: document.getElementById("overlayTitle"),
@@ -42,6 +43,10 @@ const els = {
 
 /* Last value written to each element, so we can skip unchanged writes. */
 const shown = {};
+
+/* Whether the player has sprinted yet. The keyboard hint is there to be
+ * outgrown: once they have used it, it goes and does not come back. */
+let sprintFound = false;
 
 function setText(element, text) {
     if (!element || shown[element.id] === text) return;
@@ -197,6 +202,14 @@ function drawStamina() {
 
     setClass(els.stamina, "is-spent", spent);
     setClass(els.stamina, "is-full", percent === 100);
+
+    // The bar only drains while sprinting, so a level below full is
+    // proof the player has found Shift. Latched, because the bar
+    // refills and every round starts it back at one.
+    if (!sprintFound && level < 1) {
+        sprintFound = true;
+        setClass(els.keyHint, "is-learnt", true);
+    }
 }
 
 
