@@ -121,6 +121,19 @@ const OBJECTIVES = {
             hider: "Stay out of the beam. Behind them is the safest place there is.",
         },
     },
+
+    // Backwards: the lone player is the one hiding, and everybody else is
+    // a "tagger" as far as the round is concerned.
+    sardines: {
+        counting: {
+            tagger: "Eyes shut. Count, then go and look.",
+            hider: "You are the only one hiding. Find somewhere good.",
+        },
+        hunting: {
+            tagger: "Find them. Whoever is last to work it out loses.",
+            hider: "Sit tight and stay quiet. They have to come to you.",
+        },
+    },
 };
 
 /* A line for this mode, or the classic one it did not bother to change. */
@@ -153,6 +166,13 @@ function objectiveFor(round, me) {
 }
 
 function outcomeTitle(round) {
+    // Everybody ends up hidden in Sardines, so "hiders win" is true but
+    // useless. What the round decided is who was last to work it out,
+    // and the server puts that in the note.
+    if (round.mode === "sardines") {
+        return round.note ? "Found them" : "Everybody found them";
+    }
+
     if (round.winner === "hiders") return "Hiders win";
     if (round.winner !== "tagger") return "Round over";
 
@@ -165,6 +185,7 @@ function outcomeTitle(round) {
 
 function outcomeNote(round) {
     if (round.note) return round.note;
+    if (round.mode === "sardines") return "Everybody squeezed in.";
     if (round.winner === "hiders") return "Everybody made it home.";
     if (round.winner === "tagger") {
         return round.mode === "infection"
@@ -199,6 +220,14 @@ function drawTally(round) {
     }
 
     const { hiders, frozen, safe, seekers } = round.tally;
+
+    // Backwards: there is one person hiding and a roomful looking, and
+    // the number worth watching is how few are still out there.
+    if (round.mode === "sardines") {
+        const hiding = hiders === 1 ? "1 hiding" : `${hiders} squeezed in`;
+        setText(els.tally, `${seekers} still looking · ${hiding}`);
+        return;
+    }
 
     // Naming the seeker is the useful thing while there is one of them.
     // Once the tagged start changing sides it is the count that matters,
@@ -250,6 +279,10 @@ function drawCountdown(round, me) {
         setText(els.countdownCaption, "Getting everyone in…");
     } else if (me?.role === "tagger") {
         setText(els.countdownCaption, "…counting");
+    } else if (round.mode === "sardines") {
+        // One of you is hiding and the rest of the house is counting, so
+        // naming a single seeker would be picking one of them at random.
+        setText(els.countdownCaption, "Everyone else is counting");
     } else {
         setText(els.countdownCaption, `${round.tagger || "The seeker"} is counting`);
     }

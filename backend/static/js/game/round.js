@@ -29,6 +29,9 @@ const round = {
         coneReach: VISION_RADIUS,
     },
     tagger: null,
+    /* The player the round singled out. The seeker in most modes, the one
+     * who hid in Sardines. */
+    chosen: null,
     winner: null,
     note: null,
     players: [],
@@ -53,6 +56,7 @@ export function applyState(state) {
     round.modeName = state.modeName ?? round.modeName;
     if (state.rules) Object.assign(round.rules, state.rules);
     round.tagger = state.tagger;
+    round.chosen = state.chosen ?? null;
     round.winner = state.winner;
     round.note = state.note;
     round.players = state.players ?? [];

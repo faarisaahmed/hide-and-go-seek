@@ -567,3 +567,181 @@ def test_a_move_without_a_facing_keeps_the_last_one(clock):
     rooms.move(seeker["sid"], 950.0, 900.0)
 
     assert seeker["facing"] == pytest.approx(math.pi)
+
+
+# ---------------------------------------------------------------------------
+# Sardines
+# ---------------------------------------------------------------------------
+#
+# The inverted one: one player hides, everybody else looks, and finding
+# them puts you on their side. The round is really deciding who was last
+# to work out where everyone went.
+
+def test_one_player_hides_and_everybody_else_seeks(clock):
+    code = playing(clock, "sardines", "Alice", "Bob", "Carol")
+
+    roles = sorted(p["role"] for p in rooms.get(code)["players"].values())
+    assert roles == ["hider", "tagger", "tagger"]
+
+
+def test_the_room_counts_while_the_one_hiding_runs(clock):
+    """The count is inverted with the roles: it is the seekers who are
+    blind and rooted, and the lone hider who gets to move."""
+    code = rooms.create("Alice")
+    for name in ["Bob", "Carol"]:
+        rooms.add_player(code, name)
+    for name in ["Alice", "Bob", "Carol"]:
+        rooms.enter_game(f"sid-{name}", code, name, "house1")
+
+    rooms.set_mode(code, "sardines")
+    game.start(code)
+    game.resolve(code, force=True)
+    assert game.state(code)["phase"] == "counting"
+
+    room = rooms.get(code)
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    seekers = [p for p in room["players"].values() if p["role"] == "tagger"]
+
+    assert game.can_move(room, hider), "the one hiding has to get away"
+    for seeker in seekers:
+        assert not game.can_move(room, seeker), "everybody else is counting"
+        assert not game.can_see(room, seeker, hider), "eyes shut"
+
+
+def test_finding_them_puts_you_on_their_side(clock):
+    code = playing(clock, "sardines", "Alice", "Bob", "Carol")
+    room = rooms.get(code)
+
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    finder, straggler = [p for p in room["players"].values()
+                         if p["role"] == "tagger"]
+
+    put(hider, 900, 900)
+    put(finder, 900, 900)
+    put(straggler, 2300, 1500)
+
+    game.resolve(code, force=True)
+
+    assert finder["role"] == "hider", "the finder joins them, not the reverse"
+    assert hider["role"] == "hider", "the one hiding does not change"
+    assert straggler["role"] == "tagger"
+
+
+def test_the_last_one_still_looking_loses(clock):
+    code = playing(clock, "sardines", "Alice", "Bob", "Carol")
+    room = rooms.get(code)
+
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    finder, straggler = [p for p in room["players"].values()
+                         if p["role"] == "tagger"]
+
+    put(hider, 900, 900)
+    put(finder, 900, 900)
+    put(straggler, 2300, 1500)
+
+    game.resolve(code, force=True)
+
+    state = game.state(code)
+    assert state["phase"] == "over"
+    assert straggler["name"] in state["note"], "the loser is named"
+
+
+def test_with_only_two_players_it_ends_when_they_are_found(clock):
+    """Waiting for one seeker to be left would end the round before it
+    started: there is only ever one of them."""
+    code = playing(clock, "sardines", "Alice", "Bob")
+    room = rooms.get(code)
+
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    seeker = next(p for p in room["players"].values() if p["role"] == "tagger")
+
+    game.resolve(code, force=True)
+    assert game.state(code)["phase"] == "hunting", "not over before it began"
+
+    put(hider, 900, 900)
+    put(seeker, 900, 900)
+    game.resolve(code, force=True)
+
+    assert game.state(code)["phase"] == "over"
+    assert game.state(code)["note"] is None, "nobody was last; everyone found them"
+
+
+def test_hiding_well_enough_runs_the_clock_out(clock):
+    code = playing(clock, "sardines", "Alice", "Bob", "Carol")
+    room = rooms.get(code)
+
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    put(hider, 2400, 100)
+    for seeker in [p for p in room["players"].values() if p["role"] == "tagger"]:
+        put(seeker, 200, 1600)
+
+    clock(modes.get("sardines")["round_seconds"] + 1)
+    game.resolve(code, force=True)
+
+    state = game.state(code)
+    assert state["phase"] == "over"
+    assert state["winner"] == "hiders"
+    assert "hid too well" in state["note"]
+
+
+def test_the_base_is_just_a_rug(clock):
+    """No running home: standing on the base must not take a player out
+    of a round that ends by everybody being found."""
+    code = playing(clock, "sardines", "Alice", "Bob", "Carol")
+    room = rooms.get(code)
+
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    put(hider, *BASE)
+    for seeker in [p for p in room["players"].values() if p["role"] == "tagger"]:
+        put(seeker, 200, 1600)
+
+    game.resolve(code, force=True)
+
+    assert hider["state"] == "free", "nobody is 'safe' in this one"
+    assert game.state(code)["phase"] == "hunting"
+
+
+def test_the_hiding_place_still_conceals_the_pile(clock):
+    """Somebody who has squeezed in is hidden from whoever is still
+    looking, exactly as the original hider is — otherwise the first find
+    would give the rest of them away."""
+    from test_game import hiding_spot
+
+    # Four, so that one person finding them leaves two still looking and
+    # the round is not over before there is anything to check.
+    code = playing(clock, "sardines", "Alice", "Bob", "Carol", "Dan")
+    room = rooms.get(code)
+
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    finder, straggler, other = [p for p in room["players"].values()
+                                if p["role"] == "tagger"]
+
+    spot = hiding_spot("wardrobe")
+    put(hider, *spot)
+    put(finder, *spot)
+    put(straggler, 2300, 1500)
+    put(other, 200, 1600)
+
+    game.resolve(code, force=True)
+    assert finder["role"] == "hider"
+    assert game.state(code)["phase"] == "hunting", "two are still looking"
+
+    # A straggler walks up, but not close enough to search the wardrobe.
+    put(straggler, spot[0] - 250, spot[1])
+    assert not game.can_see(room, straggler, hider)
+    assert not game.can_see(room, straggler, finder), \
+        "the first find must not give away the rest of the pile"
+
+
+def test_the_client_is_told_who_was_singled_out(clock):
+    """The HUD names them, and in this mode they are the hider rather
+    than the seeker, so "tagger" alone is not enough to go on."""
+    code = playing(clock, "sardines", "Alice", "Bob", "Carol")
+    room = rooms.get(code)
+
+    hider = next(p for p in room["players"].values() if p["role"] == "hider")
+    state = game.public_state(code)
+
+    assert state["chosen"] == hider["name"]
+    assert state["tagger"] is None, "there is no single seeker in this one"
+    assert state["rules"]["homeIsSafety"] is False
