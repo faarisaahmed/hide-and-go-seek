@@ -123,6 +123,24 @@ _MODES = [
         # and a hunt that cannot finish is not a tense one.
         "round_seconds": 300,
     },
+    {
+        "id": "sardines",
+        "name": "Sardines",
+        "blurb": "Backwards. One player hides and everyone else looks — "
+                 "and when you find them, you squeeze in and hide too.",
+        # One hider, and the whole room comes looking.
+        "seekers": "all_but_one",
+        # Finding somebody puts *you* on their side, not the other way
+        # round. The hiding place fills up and the search gets lonelier.
+        "on_tag": "recruit",
+        "rescues": False,
+        # There is nothing to run home to: the game is over when there is
+        # nobody left still looking.
+        "home_is_safety": False,
+        # Long, because it ends by everybody finding one person rather
+        # than one person finding everybody.
+        "round_seconds": 300,
+    },
 ]
 
 DEFAULT_MODE = "classic"

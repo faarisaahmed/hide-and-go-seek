@@ -601,6 +601,8 @@ export function createRenderer(canvas) {
      */
     function drawHomeCompass(map, round, you) {
         if (round.phase !== "hunting" || you.role !== "hider") return;
+        // Nothing to run home to in a mode where the base is just a rug.
+        if (!round.rules.homeIsSafety) return;
 
         const cx = screenX(map.baseCenter.x);
         const cy = screenY(map.baseCenter.y);
