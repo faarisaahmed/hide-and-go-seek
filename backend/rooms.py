@@ -13,6 +13,7 @@ moment the game starts.
 Nothing is persisted, so restarting the server clears every room.
 """
 
+import math
 import random
 import time
 
@@ -171,6 +172,10 @@ def _new_player(room, name, is_host):
         # Set briefly after the server moves them, so their own stale
         # position updates cannot put them back. See game._clear_the_base.
         "pinned_until": None,
+        # Which way they are facing, in radians, as their last movement
+        # left them. Only modes that give the seeker a torch rather than
+        # a circle of sight care, but it costs nothing to keep current.
+        "facing": 0.0,
         # Socket ids this player is currently visible to, so the server
         # only announces someone appearing or vanishing once.
         "seen_by": set(),
@@ -449,8 +454,13 @@ def players_in_game(code, exclude_sid=None):
     ]
 
 
-def move(sid, x, y):
-    """Record a player's new position. Returns ``(code, player)``."""
+def move(sid, x, y, facing=None):
+    """Record a player's new position. Returns ``(code, player)``.
+
+    ``facing`` is optional: a client that never sends one simply keeps
+    the direction it last had, which is what a player standing still
+    would want anyway.
+    """
     entry = _sid_index.get(sid)
     if entry is None:
         return None, None
@@ -466,6 +476,13 @@ def move(sid, x, y):
         return None, None
 
     player["x"], player["y"] = x, y
+
+    facing = _clean_coord(facing)
+    if facing is not None:
+        # Wrapped, so a client that counts turns rather than resetting
+        # cannot hand us an ever-growing angle.
+        player["facing"] = math.remainder(facing, 2 * math.pi)
+
     return code, player
 
 

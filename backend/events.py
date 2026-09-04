@@ -298,7 +298,8 @@ def on_player_move(data):
         return
 
     if game.can_move(room, player):
-        _, moved = rooms.move(request.sid, data.get("x"), data.get("y"))
+        _, moved = rooms.move(request.sid, data.get("x"), data.get("y"),
+                              data.get("facing"))
         if moved is not None:
             _relay_position(room, code, moved)
     else:

@@ -553,6 +553,40 @@ export function createRenderer(canvas) {
         ctx.fillRect(0, 0, viewWidth, viewHeight);
     }
 
+    /*
+     * The seeker's torch, in the modes that give them one.
+     *
+     * Drawn as a wedge of light laid over the darkness rather than as a
+     * hole cut in it, so the house is still faintly readable outside the
+     * beam — being unable to find the kitchen is tedious, being unable to
+     * find the people in it is the game.
+     *
+     * The angle is only ever the direction the player last moved, which
+     * is what makes a torch something you can be walked around behind.
+     */
+    function drawTorch(round, you) {
+        const cx = screenX(you.x + you.size / 2);
+        const cy = screenY(you.y + you.size / 2);
+
+        const reach = round.rules.coneReach;
+        const half = (round.rules.coneDegrees * Math.PI / 180) / 2;
+
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, reach);
+        gradient.addColorStop(0, "rgba(226, 240, 255, 0.17)");
+        gradient.addColorStop(0.55, "rgba(190, 220, 255, 0.09)");
+        gradient.addColorStop(1, "rgba(160, 200, 255, 0)");
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, reach, you.facing - half, you.facing + half);
+        ctx.closePath();
+
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.restore();
+    }
+
     /* Eyes shut. The seeker gets a near-black screen while counting; the
      * count itself is in the HUD, on top of the canvas. */
     function drawBlindfold() {
@@ -650,6 +684,14 @@ export function createRenderer(canvas) {
             drawBlindfold();
         } else if (round.phase === "counting" || round.phase === "hunting") {
             drawDarkness(round, localPlayer);
+
+            // Over the darkness, not under it: the beam has to lighten
+            // the dark rather than be dimmed by it.
+            if (round.rules.coneDegrees !== null
+                && localPlayer.role === "tagger"
+                && round.phase === "hunting") {
+                drawTorch(round, localPlayer);
+            }
         }
 
         drawHomeCompass(map, round, localPlayer);

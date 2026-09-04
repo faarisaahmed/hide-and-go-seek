@@ -44,6 +44,11 @@ The keys
     The seeker's field of view, in degrees, or ``None`` for all round.
     A cone means a seeker can be walked around behind.
 
+``cone_reach``
+    How far down that cone they see. Worth having separate from
+    ``vision_radius``: a torch that is narrower *and* shorter is only a
+    punishment, while one that trades width for distance is a trade.
+
 ``round_seconds``
     How long the hunt lasts before the seekers have simply held the house.
 """
@@ -60,6 +65,7 @@ _DEFAULTS = {
     "home_is_safety": True,
     "vision_radius": config.VISION_RADIUS,
     "cone_degrees": None,
+    "cone_reach": config.VISION_RADIUS,
     "round_seconds": config.ROUND_SECONDS,
 }
 
@@ -99,6 +105,23 @@ _MODES = [
         # Short on purpose. A pure chase is exhausting rather than tense
         # once it has gone on for minutes.
         "round_seconds": 100,
+    },
+    {
+        "id": "blackout",
+        "name": "Blackout",
+        "blurb": "The lights are out. Everyone sees barely a room's worth, "
+                 "and the seeker has a torch you can step around.",
+        # Enough to make out the room you are standing in and not much
+        # else. Applies to the seeker too, for anything outside the beam.
+        "vision_radius": 200,
+        # Narrow, but it reaches most of the way down a corridor. The
+        # trade is the point: the seeker sees further than anybody, and
+        # only in the direction they last moved.
+        "cone_degrees": 70,
+        "cone_reach": 560,
+        # Longer than Classic. Finding people takes longer in the dark,
+        # and a hunt that cannot finish is not a tense one.
+        "round_seconds": 300,
     },
 ]
 

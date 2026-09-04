@@ -26,7 +26,7 @@ def test_every_mode_answers_every_question():
     for mode_id, rules in modes.MODES.items():
         for key in ["id", "name", "blurb", "seekers", "on_tag", "rescues",
                     "hiding_conceals", "home_is_safety", "vision_radius",
-                    "cone_degrees", "round_seconds"]:
+                    "cone_degrees", "cone_reach", "round_seconds"]:
             assert key in rules, f"{mode_id} says nothing about {key}"
 
         assert rules["id"] == mode_id
@@ -446,3 +446,124 @@ def test_the_client_is_told_this_mode_hides_nobody(clock):
 
     assert rules["hidingConceals"] is False
     assert rules["visionRadius"] == modes.get("juggernaut")["vision_radius"]
+
+
+# ---------------------------------------------------------------------------
+# Blackout
+# ---------------------------------------------------------------------------
+#
+# Everybody sees about a room's worth. The seeker trades that for a torch
+# that reaches much further but only points where they last moved, so the
+# thing worth checking is that it can be stepped around.
+
+import math  # noqa: E402
+
+
+def _looking_east(clock, mode="blackout"):
+    """A seeker facing +x, and a hider to place around them."""
+    code = playing(clock, mode, "Alice", "Bob")
+    seeker, hiders = cast(code)
+
+    put(seeker, 1300, 850)
+    seeker["facing"] = 0.0                      # straight along +x
+
+    return rooms.get(code), seeker, hiders[0]
+
+
+def _place_at(player, seeker, bearing, distance):
+    """Put ``player`` ``distance`` away from ``seeker``, at ``bearing``."""
+    half = config.PLAYER_SIZE / 2
+    cx, cy = seeker["x"] + half, seeker["y"] + half
+    put(player, cx + math.cos(bearing) * distance,
+        cy + math.sin(bearing) * distance)
+
+
+def test_the_seeker_sees_a_long_way_down_the_beam(clock):
+    room, seeker, hider = _looking_east(clock)
+    rules = modes.get("blackout")
+
+    # Further than anybody's all-round sight, and well inside the torch.
+    reach = rules["vision_radius"] + 100
+    assert reach < rules["cone_reach"]
+
+    _place_at(hider, seeker, 0.0, reach)
+    assert game.can_see(room, seeker, hider)
+
+
+def test_the_seeker_cannot_see_someone_stood_behind_them(clock):
+    """The whole reason for a cone: a torch can be walked around."""
+    room, seeker, hider = _looking_east(clock)
+
+    # Close enough that a circle of sight would show them easily.
+    _place_at(hider, seeker, math.pi, modes.get("blackout")["vision_radius"] - 40)
+    assert not game.can_see(room, seeker, hider)
+
+
+def test_the_same_player_is_seen_once_the_seeker_turns_round(clock):
+    """Pairs with the test above, so it is the facing being checked and
+    not something else about that patch of floor."""
+    room, seeker, hider = _looking_east(clock)
+    _place_at(hider, seeker, math.pi, modes.get("blackout")["vision_radius"] - 40)
+
+    seeker["facing"] = math.pi                  # turn to look at them
+    assert game.can_see(room, seeker, hider)
+
+
+def test_somebody_at_arms_length_is_seen_whichever_way_you_face(clock):
+    """A hider invisible while stood on the seeker's toes would read as a
+    bug, and they are close enough to be tagged anyway."""
+    room, seeker, hider = _looking_east(clock)
+
+    _place_at(hider, seeker, math.pi, config.TAG_DISTANCE)
+    assert game.can_see(room, seeker, hider)
+
+
+def test_the_beam_does_not_reach_forever(clock):
+    room, seeker, hider = _looking_east(clock)
+
+    _place_at(hider, seeker, 0.0, modes.get("blackout")["cone_reach"] + 60)
+    assert not game.can_see(room, seeker, hider)
+
+
+def test_hiders_keep_their_sight_all_round(clock):
+    """The cone is the seeker's trade, not a rule about everybody."""
+    room, seeker, hider = _looking_east(clock)
+
+    _place_at(seeker, hider, math.pi, 120)
+    hider["facing"] = 0.0                       # looking the other way
+    assert game.can_see(room, hider, seeker)
+
+
+def test_everyone_sees_less_than_they_would_in_the_light(clock):
+    assert (modes.get("blackout")["vision_radius"]
+            < modes.get("classic")["vision_radius"])
+
+
+def test_the_hunt_is_longer_because_the_dark_is_slower(clock):
+    assert (modes.get("blackout")["round_seconds"]
+            > modes.get("classic")["round_seconds"])
+
+
+def test_facing_arrives_from_the_client_and_is_kept(clock):
+    """The cone is only worth anything if the angle is actually current."""
+    code = playing(clock, "blackout", "Alice", "Bob")
+    seeker, _ = cast(code)
+
+    rooms.move(seeker["sid"], 900.0, 900.0, math.pi / 2)
+    assert seeker["facing"] == pytest.approx(math.pi / 2)
+
+    # A client that keeps counting turns instead of wrapping must not
+    # hand us an angle that grows without bound.
+    rooms.move(seeker["sid"], 900.0, 900.0, math.pi / 2 + 8 * math.pi)
+    assert seeker["facing"] == pytest.approx(math.pi / 2)
+
+
+def test_a_move_without_a_facing_keeps_the_last_one(clock):
+    """Every other mode's client has no reason to send one."""
+    code = playing(clock, "blackout", "Alice", "Bob")
+    seeker, _ = cast(code)
+
+    rooms.move(seeker["sid"], 900.0, 900.0, math.pi)
+    rooms.move(seeker["sid"], 950.0, 900.0)
+
+    assert seeker["facing"] == pytest.approx(math.pi)

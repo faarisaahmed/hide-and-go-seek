@@ -26,6 +26,7 @@ const round = {
         hidingConceals: true,
         homeIsSafety: true,
         coneDegrees: null,
+        coneReach: VISION_RADIUS,
     },
     tagger: null,
     winner: null,
