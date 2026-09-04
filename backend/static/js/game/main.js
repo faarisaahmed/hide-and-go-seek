@@ -47,6 +47,10 @@ async function start() {
         emoji: "",
         role: null,
         state: "free",
+        // Which way we are pointing, in radians, from the last direction
+        // we actually moved. Standing still keeps the last one, which is
+        // what you want when a seeker stops to look down a corridor.
+        facing: 0,
     };
 
     let map;
@@ -116,6 +120,11 @@ async function start() {
         const running = stepStamina(dt, sprinting && (x !== 0 || y !== 0));
 
         if (x !== 0 || y !== 0) {
+            // Before the move, and from the input rather than from where
+            // we ended up: walking into a wall should not swing the torch
+            // round to face along it.
+            localPlayer.facing = Math.atan2(y, x);
+
             const distance = PLAYER_SPEED * (running ? SPRINT_MULTIPLIER : 1) * dt;
             moveWithCollision(localPlayer, map, x * distance, y * distance);
         }

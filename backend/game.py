@@ -111,6 +111,42 @@ def _hidden_in(game, player):
     return maps.hiding_spot_at(game["map"], *_center(player))
 
 
+def _bearing_difference(viewer, target):
+    """Angle between where ``viewer`` is looking and where ``target`` is.
+
+    Signed, and wrapped to (-pi, pi], so that a target just clockwise of
+    straight ahead is a small number rather than nearly a full turn.
+    """
+    vx, vy = _center(viewer)
+    tx, ty = _center(target)
+
+    bearing = math.atan2(ty - vy, tx - vx)
+    return math.remainder(bearing - viewer.get("facing", 0.0), 2 * math.pi)
+
+
+def _in_torchlight(viewer, target, rules):
+    """Whether a seeker carrying a torch rather than a lantern sees this.
+
+    The beam is narrow but reaches further than the all-round sight the
+    mode leaves everyone else, so a seeker sees a long way down a
+    corridor and nothing at all beside them — which is the point, since
+    it means they can be walked around behind.
+    """
+    distance = _distance(viewer, target)
+
+    # Arm's length. You do not have to be looking at somebody you are
+    # close enough to touch, and a hider being invisible while stood on
+    # the seeker's toes would read as a bug rather than as a rule.
+    if distance <= config.TAG_DISTANCE * 2:
+        return True
+
+    if distance > rules["cone_reach"]:
+        return False
+
+    half_beam = math.radians(rules["cone_degrees"]) / 2
+    return abs(_bearing_difference(viewer, target)) <= half_beam
+
+
 # ---------------------------------------------------------------------------
 # Who is who
 # ---------------------------------------------------------------------------
@@ -260,9 +296,12 @@ def can_see(room, viewer, target):
         return False
 
     rules = _rules(game)
-
     distance = _distance(viewer, target)
-    if distance > rules["vision_radius"]:
+
+    if rules["cone_degrees"] is not None and viewer["role"] == "tagger":
+        if not _in_torchlight(viewer, target, rules):
+            return False
+    elif distance > rules["vision_radius"]:
         return False
 
     # Team-mates can see each other hiding, which is what makes rescues
@@ -586,6 +625,7 @@ def public_state(code):
             "hidingConceals": rules["hiding_conceals"],
             "homeIsSafety": rules["home_is_safety"],
             "coneDegrees": rules["cone_degrees"],
+            "coneReach": rules["cone_reach"],
         },
         # Counted down by the client from when it arrives, so the clock
         # keeps ticking between broadcasts.

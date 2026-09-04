@@ -110,6 +110,17 @@ const OBJECTIVES = {
             hider: "Straight home. The furniture will not save you.",
         },
     },
+
+    blackout: {
+        counting: {
+            tagger: "Eyes shut. You get a torch when you open them.",
+            hider: "Run — it is pitch dark out there. Feel your way.",
+        },
+        hunting: {
+            tagger: "Sweep the house. Your torch points wherever you last moved.",
+            hider: "Stay out of the beam. Behind them is the safest place there is.",
+        },
+    },
 };
 
 /* A line for this mode, or the classic one it did not bother to change. */

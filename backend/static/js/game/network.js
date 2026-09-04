@@ -115,7 +115,15 @@ function startReporting(socket, localPlayer) {
         const stale = Date.now() - lastSentAt > POSITION_KEEPALIVE_MS;
         if (!moved && !stale) return;
 
-        socket.emit("player_move", { x: localPlayer.x, y: localPlayer.y });
+        // Facing rides along with the position rather than going in its
+        // own message: the only thing that changes it is moving, so there
+        // is never a turn to report that a move does not already carry.
+        socket.emit("player_move", {
+            x: localPlayer.x,
+            y: localPlayer.y,
+            facing: localPlayer.facing,
+        });
+
         lastX = localPlayer.x;
         lastY = localPlayer.y;
         lastSentAt = Date.now();
