@@ -36,6 +36,40 @@ middle of the house.
 
 Then the host can deal again, and the seeker rotates.
 
+## The modes
+
+Those are the rules of **Classic**. The host picks a mode in the lobby
+before starting, and everyone else can see the choice — they need to know
+what they are about to be dropped into even though they cannot change it.
+The round takes a copy when it starts, so nobody can rewrite the rules of
+a hunt already in progress.
+
+**Infection.** Get tagged and you join the seekers rather than freezing.
+The house fills up with them, so the round accelerates as it goes: every
+catch is one fewer person to find and one more pair of eyes looking for
+the rest. Being the last one still hiding is genuinely unpleasant.
+
+**Juggernaut.** No hiding and no rescues. Furniture is just furniture,
+a tag is final, and the clock is short. There is nothing between you and
+the base except the seeker, which makes it the one to play when people
+want a chase rather than a search.
+
+**Blackout.** The lights are out. Everyone sees about a room's worth in
+every direction, and the seeker trades that circle for a torch: narrower,
+but reaching most of the way down a corridor and pointing only where they
+last moved. That trade is the mode — a seeker who sees further than
+anybody can still be walked around behind.
+
+**Sardines.** Backwards. One player hides and the whole room goes
+looking; find them and you squeeze in and hide too, so the wardrobe fills
+up while the search gets lonelier. Last one still looking loses.
+
+A mode is a dict in `modes.py` answering a fixed set of questions — how
+many seekers, what a tag does, whether rescues exist, whether furniture
+conceals, how far anyone sees, how long the hunt runs. `game.py` reads
+those answers rather than reaching for `config.py` directly, so adding a
+mode is a dict rather than another branch threaded through the round.
+
 ### The house
 
 Twelve rooms around a corridor spine, with the base in the hall at the
@@ -58,13 +92,18 @@ makes you invisible to the seeker until they walk within `SEARCH_DISTANCE`
 and search it. Your own team can always see you, which is what makes
 rescues possible.
 
-Beyond `VISION_RADIUS` nobody is drawn at all. That filter lives on the
-**server** (`game.can_see`), not the client: positions the seeker is not
-entitled to are never sent, so there is nothing for a modified client to
-draw. Everything else that decides the round — tags, thaws, reaching home,
-who won — is decided server-side too. The client keeps a copy of the same
-distances only so it can grey out the joystick and draw a search radius
-without waiting for a round trip.
+Beyond the mode's sight radius nobody is drawn at all — and in Blackout,
+outside the seeker's torch either. That filter lives on the **server**
+(`game.can_see`), not the client: positions the seeker is not entitled to
+are never sent, so there is nothing for a modified client to draw.
+Everything else that decides the round — tags, thaws, reaching home, who
+won — is decided server-side too.
+
+The client is told the active mode's numbers along with the round, so the
+darkness it paints and the torch it draws are the same shape as the
+filter the server is applying. It keeps its own copy of the distances
+only so it can grey out the joystick and draw a search radius without
+waiting for a round trip.
 
 ## Running locally
 
@@ -120,6 +159,12 @@ whole round: role assignment, each phase transition, tagging, thawing, both
 win conditions, and — the one worth having — that a hidden player is never
 sent to the seeker over the wire.
 
+`test_modes.py` covers each mode's own rules, mostly in pairs: a hider in
+the wardrobe is visible in Juggernaut and invisible in Classic from the
+same spot, and somebody standing behind a Blackout seeker is unseen until
+the seeker turns round. A single-sided assertion there would pass just as
+happily if the two players were simply too far apart.
+
 `test_maps.py` treats the house as something that has to be *playable*: it
 flood-fills from the base with a player-sized box to prove every room and
 every hiding spot can be walked to, which is what catches a sideboard
@@ -136,7 +181,8 @@ look up existing in the page they run on.
 1. **Home** (`/`) — enter a display name, then create a room or join one
    with its 4-digit code.
 2. **Lobby** (`/room_page`) — see who's in the room, pick an emoji, chat,
-   read the rules. The host gets a **Start game** button.
+   read the rules and the controls. The host picks the mode and gets a
+   **Start game** button.
 3. **Game** (`/game_page`) — WASD/arrows and Shift to sprint, or the
    on-screen joystick and B button on touch devices. The HUD tells you
    your role, what you should be doing about it, and how the round stands.
@@ -166,6 +212,7 @@ backend/
   app.py            Flask + Socket.IO app factory and dev entrypoint
   config.py         Tunable constants (port, emoji pool, round rules)
   game.py           The round: roles, phases, tagging, thawing, winning
+  modes.py          The game modes, as data: what each one changes
   maps.py           Reads map JSON: spawns, the base, hiding spots
   extensions.py     The shared SocketIO object
   rooms.py          In-memory room + player store
