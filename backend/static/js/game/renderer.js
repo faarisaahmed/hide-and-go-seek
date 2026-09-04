@@ -28,7 +28,6 @@ import {
     ROOM_LABEL_FONT,
     SEARCH_DISTANCE,
     TILE_SIZE,
-    VISION_RADIUS,
 } from "./config.js";
 import { hideSpotAt } from "./map_loader.js";
 import { getRound, playerNamed } from "./round.js";
@@ -393,15 +392,20 @@ export function createRenderer(canvas) {
     }
 
     /* The seeker's own screen shows how close they have to be to turn
-     * out a hiding spot. */
+     * out a hiding spot. Pointless in a mode where furniture hides
+     * nobody, and drawing it there would promise a mechanic that is
+     * switched off. */
     function drawSearchRing(round, you) {
         if (you.role !== "tagger" || round.phase !== "hunting") return;
+        if (!round.rules.hidingConceals) return;
         ring(you.x + you.size / 2, you.y + you.size / 2, SEARCH_DISTANCE, COLORS.searchRing);
     }
 
     /* The hiding spot the local player is tucked into, outlined so they
      * can tell that they are actually in it. */
-    function drawOwnHidingSpot(map, you) {
+    function drawOwnHidingSpot(map, round, you) {
+        if (!round.rules.hidingConceals) return;
+
         const spot = hideSpotAt(map, you.x + you.size / 2, you.y + you.size / 2);
         if (!spot) return;
 
@@ -530,18 +534,57 @@ export function createRenderer(canvas) {
      * blacking out means you can still find your way to the kitchen in
      * the dark, which is the bit that feels like hide and seek.
      */
-    function drawDarkness(you) {
+    function drawDarkness(round, you) {
         const cx = screenX(you.x + you.size / 2);
         const cy = screenY(you.y + you.size / 2);
 
+        // The mode's reach, not the config's: the server stops sending
+        // people at this distance, so drawing a wider circle of light
+        // would just be a ring of floor nobody is ever in.
+        const reach = round.rules.visionRadius;
+
         const gradient = ctx.createRadialGradient(
-            cx, cy, VISION_RADIUS * 0.5, cx, cy, VISION_RADIUS,
+            cx, cy, reach * 0.5, cx, cy, reach,
         );
         gradient.addColorStop(0, "rgba(3, 6, 14, 0)");
         gradient.addColorStop(1, COLORS.darkness);
 
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, viewWidth, viewHeight);
+    }
+
+    /*
+     * The seeker's torch, in the modes that give them one.
+     *
+     * Drawn as a wedge of light laid over the darkness rather than as a
+     * hole cut in it, so the house is still faintly readable outside the
+     * beam — being unable to find the kitchen is tedious, being unable to
+     * find the people in it is the game.
+     *
+     * The angle is only ever the direction the player last moved, which
+     * is what makes a torch something you can be walked around behind.
+     */
+    function drawTorch(round, you) {
+        const cx = screenX(you.x + you.size / 2);
+        const cy = screenY(you.y + you.size / 2);
+
+        const reach = round.rules.coneReach;
+        const half = (round.rules.coneDegrees * Math.PI / 180) / 2;
+
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, reach);
+        gradient.addColorStop(0, "rgba(226, 240, 255, 0.17)");
+        gradient.addColorStop(0.55, "rgba(190, 220, 255, 0.09)");
+        gradient.addColorStop(1, "rgba(160, 200, 255, 0)");
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, reach, you.facing - half, you.facing + half);
+        ctx.closePath();
+
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.restore();
     }
 
     /* Eyes shut. The seeker gets a near-black screen while counting; the
@@ -558,6 +601,8 @@ export function createRenderer(canvas) {
      */
     function drawHomeCompass(map, round, you) {
         if (round.phase !== "hunting" || you.role !== "hider") return;
+        // Nothing to run home to in a mode where the base is just a rug.
+        if (!round.rules.homeIsSafety) return;
 
         const cx = screenX(map.baseCenter.x);
         const cy = screenY(map.baseCenter.y);
@@ -616,7 +661,7 @@ export function createRenderer(canvas) {
         drawRoomLabels(map);
         drawWalls(map);
 
-        drawOwnHidingSpot(map, localPlayer);
+        drawOwnHidingSpot(map, round, localPlayer);
         drawNoHideRing(map, round, localPlayer);
         drawSearchRing(round, localPlayer);
 
@@ -640,7 +685,15 @@ export function createRenderer(canvas) {
         if (round.phase === "counting" && localPlayer.role === "tagger") {
             drawBlindfold();
         } else if (round.phase === "counting" || round.phase === "hunting") {
-            drawDarkness(localPlayer);
+            drawDarkness(round, localPlayer);
+
+            // Over the darkness, not under it: the beam has to lighten
+            // the dark rather than be dimmed by it.
+            if (round.rules.coneDegrees !== null
+                && localPlayer.role === "tagger"
+                && round.phase === "hunting") {
+                drawTorch(round, localPlayer);
+            }
         }
 
         drawHomeCompass(map, round, localPlayer);

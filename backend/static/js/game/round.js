@@ -2,18 +2,40 @@
  * The round, as the client understands it.
  *
  * The server owns all of this: who the seeker is, who is frozen, who
- * made it home, and when each phase ends. This module just holds the
- * last thing it said and keeps the countdown ticking between messages,
- * since the server only broadcasts when something actually changes.
+ * made it home, when each phase ends, and which mode's rules are in
+ * force. This module just holds the last thing it said and keeps the
+ * countdown ticking between messages, since the server only broadcasts
+ * when something actually changes.
  */
+
+import { VISION_RADIUS } from "./config.js";
 
 const round = {
     phase: "lobby",
+    /* Which mode the server started this round in. The rules are its
+     * business; the client only needs it to say the right things. */
+    mode: "classic",
+    modeName: "Classic",
+
+    /* The numbers this mode plays by. Seeded from config.js so there is
+     * something sane to draw before the first broadcast arrives, then
+     * replaced by whatever the server says — it is the one deciding what
+     * anybody can see, so it is the one worth believing. */
+    rules: {
+        visionRadius: VISION_RADIUS,
+        hidingConceals: true,
+        homeIsSafety: true,
+        coneDegrees: null,
+        coneReach: VISION_RADIUS,
+    },
     tagger: null,
+    /* The player the round singled out. The seeker in most modes, the one
+     * who hid in Sardines. */
+    chosen: null,
     winner: null,
     note: null,
     players: [],
-    tally: { hiders: 0, free: 0, frozen: 0, safe: 0 },
+    tally: { hiders: 0, free: 0, frozen: 0, safe: 0, seekers: 0 },
 
     /* Whole seconds at the moment the message arrived, counted down from
      * there rather than re-asked for. */
@@ -30,7 +52,11 @@ export function applyState(state) {
     if (!state) return;
 
     round.phase = state.phase;
+    round.mode = state.mode ?? round.mode;
+    round.modeName = state.modeName ?? round.modeName;
+    if (state.rules) Object.assign(round.rules, state.rules);
     round.tagger = state.tagger;
+    round.chosen = state.chosen ?? null;
     round.winner = state.winner;
     round.note = state.note;
     round.players = state.players ?? [];

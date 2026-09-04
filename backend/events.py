@@ -116,7 +116,11 @@ def _publish(code, changes=("players",)):
         for player in game.take_relocated(code):
             _correct(player)
 
-    if "phase" in changes:
+    # A phase change opens eyes that were shut; so does a player changing
+    # sides, which is what a tag does in Infection. Either way every pair
+    # has to be looked at again, since no position update need arrive to
+    # make the new answer true.
+    if "phase" in changes or "sight" in changes:
         _sync_visibility(code)
 
     state = game.public_state(code)
@@ -294,7 +298,8 @@ def on_player_move(data):
         return
 
     if game.can_move(room, player):
-        _, moved = rooms.move(request.sid, data.get("x"), data.get("y"))
+        _, moved = rooms.move(request.sid, data.get("x"), data.get("y"),
+                              data.get("facing"))
         if moved is not None:
             _relay_position(room, code, moved)
     else:

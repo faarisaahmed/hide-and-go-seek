@@ -505,3 +505,75 @@ canvas {
 .stamina.is-full {
     opacity: 0.35;
 }
+
+/* ===== Keyboard hint =====
+   Touch players can see the joystick and the B button. Keyboard players
+   were told nothing at all, so plenty of them played entire rounds at
+   walking pace without ever finding out that Shift runs.
+
+   Sits above the stamina bar, between the thumb pad and the button pad,
+   where the bottom of the screen is otherwise empty. */
+
+.keyhint {
+    display: none;
+
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(40px, calc(env(safe-area-inset-bottom) + 28px));
+    z-index: 21;
+
+    align-items: center;
+    gap: 18px;
+
+    padding: 7px 14px;
+
+    background: rgba(5, 11, 26, 0.72);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+
+    white-space: nowrap;
+    pointer-events: none;
+
+    /* Fades rather than vanishing, so using Shift for the first time
+       reads as "yes, that" instead of the screen glitching. */
+    transition: opacity 0.45s ease;
+}
+
+/* Only worth screen space where there is a keyboard to press. This
+   mirrors the query that fades the thumb pad down on the same devices. */
+@media (hover: hover) and (pointer: fine) {
+    .keyhint { display: flex; }
+}
+
+/* Set once the player has actually sprinted: they found it, so stop
+   saying it. Left in the layout so nothing else shifts as it goes. */
+.keyhint.is-learnt {
+    opacity: 0;
+}
+
+.keyhint__group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.keyhint__or,
+.keyhint__label {
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+.keyhint__label {
+    margin-left: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+
+/* The mode chip sits with the clock, quieter than it: useful to glance
+   at, not something to watch. */
+.hud__chip--mode {
+    color: var(--text-dim);
+    font-weight: 600;
+}

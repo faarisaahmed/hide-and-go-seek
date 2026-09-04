@@ -69,6 +69,21 @@ def test_elements_the_lobby_reveals_start_hidden():
         assert "hidden" in tag.group(0), f"{element_id} does not start hidden"
 
 
+def test_the_sprint_key_is_written_down_where_players_will_see_it():
+    """Sprint is only a mechanic if people know it is there.
+
+    Touch players find the B button by looking at it. Keyboard players
+    had nothing to look at, and played whole rounds without discovering
+    that Shift runs, so both pages now say so. If a redesign drops the
+    hint the mechanic quietly stops existing for half the players, and
+    nothing else would catch that.
+    """
+    for page in ["room.html", "game.html"]:
+        markup = read("..", "templates", page)
+        assert "Shift" in markup, f"{page} never mentions the sprint key"
+        assert "kbd" in markup, f"{page} has no keycaps to read"
+
+
 def test_pages_load_nothing_from_the_internet():
     """The game is played over a LAN, which may have no internet.
 

@@ -28,6 +28,7 @@ import time
 
 import config
 import maps
+import modes
 import rooms
 
 # Nobody moves while the last clients are still loading in.
@@ -48,6 +49,10 @@ def _new_state():
         # in a row when there is a choice.
         "last_tagger": None,
         "map": config.DEFAULT_MAP,
+        # Copied from the room when the round starts, so that the host
+        # changing the lobby's selection cannot rewrite the rules of a
+        # hunt that is already under way.
+        "mode": modes.DEFAULT_MODE,
         # Deadline for the current phase, and for the hunt as a whole.
         "phase_ends_at": None,
         "round_ends_at": None,
@@ -72,6 +77,11 @@ def _state(room):
     if room.get("game") is None:
         room["game"] = _new_state()
     return room["game"]
+
+
+def _rules(game):
+    """The mode's answers for the round in progress. See :mod:`modes`."""
+    return modes.get(game["mode"])
 
 
 # ---------------------------------------------------------------------------
@@ -101,15 +111,65 @@ def _hidden_in(game, player):
     return maps.hiding_spot_at(game["map"], *_center(player))
 
 
+def _bearing_difference(viewer, target):
+    """Angle between where ``viewer`` is looking and where ``target`` is.
+
+    Signed, and wrapped to (-pi, pi], so that a target just clockwise of
+    straight ahead is a small number rather than nearly a full turn.
+    """
+    vx, vy = _center(viewer)
+    tx, ty = _center(target)
+
+    bearing = math.atan2(ty - vy, tx - vx)
+    return math.remainder(bearing - viewer.get("facing", 0.0), 2 * math.pi)
+
+
+def _in_torchlight(viewer, target, rules):
+    """Whether a seeker carrying a torch rather than a lantern sees this.
+
+    The beam is narrow but reaches further than the all-round sight the
+    mode leaves everyone else, so a seeker sees a long way down a
+    corridor and nothing at all beside them — which is the point, since
+    it means they can be walked around behind.
+    """
+    distance = _distance(viewer, target)
+
+    # Arm's length. You do not have to be looking at somebody you are
+    # close enough to touch, and a hider being invisible while stood on
+    # the seeker's toes would read as a bug rather than as a rule.
+    if distance <= config.TAG_DISTANCE * 2:
+        return True
+
+    if distance > rules["cone_reach"]:
+        return False
+
+    half_beam = math.radians(rules["cone_degrees"]) / 2
+    return abs(_bearing_difference(viewer, target)) <= half_beam
+
+
 # ---------------------------------------------------------------------------
 # Who is who
 # ---------------------------------------------------------------------------
 
 def _tagger(room):
-    """The seeker's record, or None if they are gone."""
+    """The seeker the round *started* with, or None if they are gone.
+
+    Only used for display. Modes that turn the tagged into hunters have
+    several seekers by the end, and this stays the one it began with, so
+    the HUD can go on saying whose round it was.
+    """
     key = _state(room)["tagger"]
     player = room["players"].get(key) if key else None
     return player if player and player["role"] == "tagger" else None
+
+
+def _taggers(room):
+    """Everyone hunting right now.
+
+    A list rather than one record, because a mode that converts the
+    tagged ends up with a houseful of them.
+    """
+    return [p for p in room["players"].values() if p["role"] == "tagger"]
 
 
 def _hiders(room):
@@ -144,24 +204,37 @@ def start(code):
     if len(players) < config.MIN_PLAYERS:
         return False, f"You need at least {config.MIN_PLAYERS} players"
 
-    # Spread the seeker around: anyone but last round's seeker, unless
-    # they are the only candidate left.
+    # Spread the odd job around: anyone but the player who had it last
+    # round, unless they are the only candidate left.
     keys = [key for key, _ in players]
     candidates = [key for key in keys if key != game["last_tagger"]] or keys
-    tagger = random.choice(candidates)
+    chosen = random.choice(candidates)
+
+    mode = rooms.mode_of(room)
+    rules = modes.get(mode)
 
     game.update(
         phase="gathering",
-        tagger=tagger,
+        tagger=chosen,
         map=config.DEFAULT_MAP,
+        mode=mode,
         phase_ends_at=_now() + config.GATHER_SECONDS,
         round_ends_at=None,
         winner=None,
         note=None,
     )
 
+    # Usually the chosen player is the seeker and everybody else hides.
+    # Sardines turns that round: one player hides and the whole room comes
+    # looking, so the same pick means the opposite role.
+    inverted = rules["seekers"] == "all_but_one"
+
     for index, (key, player) in enumerate(players):
-        player["role"] = "tagger" if key == tagger else "hider"
+        odd_one_out = key == chosen
+        if inverted:
+            player["role"] = "hider" if odd_one_out else "tagger"
+        else:
+            player["role"] = "tagger" if odd_one_out else "hider"
         player["state"] = "free"
         player["rescue_since"] = None
         player["pinned_until"] = None
@@ -234,14 +307,21 @@ def can_see(room, viewer, target):
     if phase == "counting" and viewer["role"] == "tagger":
         return False
 
+    rules = _rules(game)
     distance = _distance(viewer, target)
-    if distance > config.VISION_RADIUS:
+
+    if rules["cone_degrees"] is not None and viewer["role"] == "tagger":
+        if not _in_torchlight(viewer, target, rules):
+            return False
+    elif distance > rules["vision_radius"]:
         return False
 
     # Team-mates can see each other hiding, which is what makes rescues
     # possible; the seeker has to come and search the furniture. A frozen
     # player is always visible, so they can be found and thawed.
     if (viewer["role"] == "tagger"
+            and target["role"] == "hider"
+            and rules["hiding_conceals"]
             and target["state"] == "free"
             and _hidden_in(game, target)):
         return distance <= config.SEARCH_DISTANCE
@@ -330,7 +410,7 @@ def _begin_hunting(room, game, now):
 
     game["phase"] = "hunting"
     game["phase_ends_at"] = None
-    game["round_ends_at"] = now + config.ROUND_SECONDS
+    game["round_ends_at"] = now + _rules(game)["round_seconds"]
 
 
 def _clear_the_base(room, game, now):
@@ -366,47 +446,163 @@ def _clear_the_base(room, game, now):
 
 
 def _hunt(room, game, now):
-    """One pass of tagging, thawing, reaching home, and checking for a win."""
+    """One pass of contact, thawing, reaching home, and checking for a win."""
+    rules = _rules(game)
+
+    inverted = rules["seekers"] == "all_but_one"
+
+    if not _taggers(room):
+        # Not reachable in an inverted mode by everyone being found —
+        # that ends the round as a win before this runs again.
+        _finish(game, None, "Everybody looking left the game."
+                if inverted else "The seeker left the game.")
+        return {"players"}
+    if not _hiders(room):
+        _finish(game, None, "The player hiding left the game."
+                if inverted else "Everybody hiding left the game.")
+        return {"players"}
+
+    changes = _contacts(room, game, rules)
+
+    if rules["rescues"]:
+        changes |= _rescues(_hiders(room), now)
+
+    changes |= _outcome(room, game, rules, now)
+    return changes
+
+
+def _contacts(room, game, rules):
+    """Hiders reaching home, and hiders a seeker has caught up with.
+
+    Re-read each pass rather than taken as an argument, because a mode
+    that moves players between the two sides does so as this runs.
+    """
+    if rules["on_tag"] == "recruit":
+        return _joining(room)
+
     changes = set()
 
-    tagger = _tagger(room)
-    hiders = _hiders(room)
+    # A seeker whose socket is gone is not in the house to touch anyone.
+    taggers = [t for t in _taggers(room) if t["sid"] is not None]
 
-    if tagger is None:
-        _finish(game, None, "The seeker left the game.")
-        return {"players"}
-    if not hiders:
-        _finish(game, None, "Everybody hiding left the game.")
-        return {"players"}
-
-    for hider in hiders:
+    for hider in _hiders(room):
         if hider["state"] != "free":
             continue
 
         # Home is checked first: stepping onto the base beats a tag, so
         # a dive for the door is worth trying.
-        if maps.in_base(game["map"], *_center(hider)):
+        if rules["home_is_safety"] and maps.in_base(game["map"], *_center(hider)):
             hider["state"] = "safe"
             hider["rescue_since"] = None
             changes.add("players")
-        elif tagger["sid"] is not None and _distance(tagger, hider) <= config.TAG_DISTANCE:
+            continue
+
+        if not any(_distance(t, hider) <= config.TAG_DISTANCE for t in taggers):
+            continue
+
+        hider["rescue_since"] = None
+
+        if rules["on_tag"] == "convert":
+            # The tagged join the hunt instead of stopping. Every catch is
+            # one fewer to find and one more pair of eyes looking for the
+            # rest, so the round gets faster as it goes.
+            hider["role"] = "tagger"
+            hider["state"] = "free"
+            # Their own sight lines change with their side, and so does
+            # everyone else's view of them.
+            changes.add("sight")
+        else:
             hider["state"] = "frozen"
-            hider["rescue_since"] = None
-            changes.add("players")
 
-    changes |= _rescues(hiders, now)
-
-    # Anyone still free can change the outcome, so the round is not over.
-    present = [h for h in hiders if h["sid"] is not None]
-    if present and all(h["state"] != "free" for h in present):
-        everyone_home = all(h["state"] == "safe" for h in present)
-        _finish(game, "hiders" if everyone_home else "tagger", None)
-        changes.add("players")
-    elif now >= game["round_ends_at"]:
-        _finish(game, "tagger", "Time ran out.")
         changes.add("players")
 
     return changes
+
+
+def _joining(room):
+    """Sardines: a seeker who finds the hidden squeezes in beside them.
+
+    Contact is read the other way round from every other mode. It is the
+    seeker who changes sides, not the person they walked into, and the
+    result is that the hiding place fills up while the search gets
+    lonelier — which is the whole joke of the game.
+    """
+    changes = set()
+
+    hidden = [h for h in _hiders(room) if h["sid"] is not None]
+    if not hidden:
+        return changes
+
+    for seeker in _taggers(room):
+        if seeker["sid"] is None:
+            continue
+        if not any(_distance(seeker, h) <= config.TAG_DISTANCE for h in hidden):
+            continue
+
+        seeker["role"] = "hider"
+        seeker["state"] = "free"
+        seeker["rescue_since"] = None
+        # They see the house as a hider now, and the hiders see them.
+        changes.add("sight")
+        changes.add("players")
+
+    return changes
+
+
+def _outcome(room, game, rules, now):
+    """End the round if somebody has won it."""
+    if rules["seekers"] == "all_but_one":
+        return _sardines_outcome(room, game, now)
+
+    # Only players who are actually here can still change the result. A
+    # hider whose phone dropped must not hold the round open.
+    hiders = [h for h in _hiders(room) if h["sid"] is not None]
+
+    if not hiders:
+        # Nobody is hiding any more. Where a tag recruits the tagged that
+        # is the seekers having taken the whole house, rather than the
+        # broken round it would be in any other mode.
+        if rules["on_tag"] == "convert":
+            _finish(game, "tagger", None)
+            return {"players"}
+    elif all(h["state"] != "free" for h in hiders):
+        everyone_home = all(h["state"] == "safe" for h in hiders)
+        _finish(game, "hiders" if everyone_home else "tagger", None)
+        return {"players"}
+
+    if now >= game["round_ends_at"]:
+        _finish(game, "tagger", "Time ran out.")
+        return {"players"}
+
+    return set()
+
+
+def _sardines_outcome(room, game, now):
+    """Sardines ends when there is nobody left to be looking.
+
+    The hiding side always wins, because everyone ends up on it; what the
+    round is really deciding is who was last to work out where everybody
+    went, and that is the one thing worth reporting.
+    """
+    seekers = [t for t in _taggers(room) if t["sid"] is not None]
+
+    if not seekers:
+        _finish(game, "hiders", None)
+        return {"players"}
+
+    # With two players there is only ever one seeker, so waiting for the
+    # last one to be left would end the round before it began. Above that,
+    # being the last one still looking is how you lose.
+    present = sum(1 for p in room["players"].values() if p["sid"] is not None)
+    if len(seekers) == 1 and present >= 3:
+        _finish(game, "hiders", f"{seekers[0]['name']} was last to find them.")
+        return {"players"}
+
+    if now >= game["round_ends_at"]:
+        _finish(game, "hiders", "Time ran out. They hid too well.")
+        return {"players"}
+
+    return set()
 
 
 def _rescues(hiders, now):
@@ -479,6 +675,7 @@ def public_state(code):
     game = _state(room)
     now = _now()
     tagger = _tagger(room)
+    chosen = room["players"].get(game["tagger"]) if game["tagger"] else None
 
     players = [
         {
@@ -495,13 +692,32 @@ def public_state(code):
 
     hiders = [p for p in players if p["role"] == "hider"]
 
+    rules = _rules(game)
+
     return {
         "phase": game["phase"],
+        "mode": rules["id"],
+        "modeName": rules["name"],
+        # The numbers that vary by mode, so the client draws the round it
+        # is actually in rather than the one config.py describes. The
+        # server still decides everything these affect; sending them only
+        # stops the drawing disagreeing with the ruling.
+        "rules": {
+            "visionRadius": rules["vision_radius"],
+            "hidingConceals": rules["hiding_conceals"],
+            "homeIsSafety": rules["home_is_safety"],
+            "coneDegrees": rules["cone_degrees"],
+            "coneReach": rules["cone_reach"],
+        },
         # Counted down by the client from when it arrives, so the clock
         # keeps ticking between broadcasts.
         "secondsLeft": _seconds_left(game["phase_ends_at"], now),
         "roundSecondsLeft": _seconds_left(game["round_ends_at"], now),
         "tagger": tagger["name"] if tagger else None,
+        # The player the round singled out, whichever side that put them
+        # on. Usually the seeker; in Sardines it is the one who hid, and
+        # the HUD has to be able to name them either way.
+        "chosen": chosen["name"] if chosen else None,
         "winner": game["winner"],
         "note": game["note"],
         "players": players,
@@ -510,5 +726,9 @@ def public_state(code):
             "free": sum(1 for p in hiders if p["state"] == "free"),
             "frozen": sum(1 for p in hiders if p["state"] == "frozen"),
             "safe": sum(1 for p in hiders if p["state"] == "safe"),
+            # Worth counting separately: in a mode where the tagged change
+            # sides this climbs through the round, and "one seeker" stops
+            # being a true thing to say.
+            "seekers": sum(1 for p in players if p["role"] == "tagger"),
         },
     }

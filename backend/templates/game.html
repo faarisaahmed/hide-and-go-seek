@@ -18,6 +18,9 @@
     </div>
 
     <div class="hud__right">
+        {# Which mode, since the lobby is several minutes behind you by
+           the time the house is dark and somebody is chasing you. #}
+        <div class="hud__chip hud__chip--mode" id="hudMode" hidden></div>
         <div class="hud__chip" id="hudClock" hidden>0:00</div>
         <div class="hud__chip hud__chip--wide" id="hudTally"></div>
     </div>
@@ -44,6 +47,23 @@
    a desktop, where the pad is faded right down. #}
 <div class="stamina" id="stamina">
     <div class="stamina__fill" id="staminaFill"></div>
+</div>
+
+{# What the keys are. A touch player can see a joystick and a B button, so
+   they find out by looking; a keyboard player was never told anything, and
+   people were finishing whole rounds without discovering that Shift runs.
+   Shown only on devices with a keyboard, and only until you have used it. #}
+<div class="keyhint" id="keyHint">
+    <span class="keyhint__group">
+        <kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd>
+        <span class="keyhint__or">or</span>
+        <kbd class="kbd">&uarr;</kbd><kbd class="kbd">&larr;</kbd><kbd class="kbd">&darr;</kbd><kbd class="kbd">&rarr;</kbd>
+        <span class="keyhint__label">move</span>
+    </span>
+    <span class="keyhint__group">
+        <kbd class="kbd kbd--wide">Shift</kbd>
+        <span class="keyhint__label">run</span>
+    </span>
 </div>
 
 {# Results, and the host's way to start another round. #}

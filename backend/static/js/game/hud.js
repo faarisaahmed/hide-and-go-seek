@@ -21,6 +21,7 @@ const els = {
     name: document.getElementById("hudName"),
     tally: document.getElementById("hudTally"),
     clock: document.getElementById("hudClock"),
+    mode: document.getElementById("hudMode"),
 
     countdown: document.getElementById("countdown"),
     countdownNumber: document.getElementById("countdownNumber"),
@@ -30,6 +31,7 @@ const els = {
     hidingNote: document.getElementById("hidingNote"),
     stamina: document.getElementById("stamina"),
     staminaFill: document.getElementById("staminaFill"),
+    keyHint: document.getElementById("keyHint"),
 
     overlay: document.getElementById("roundOverlay"),
     overlayTitle: document.getElementById("overlayTitle"),
@@ -42,6 +44,10 @@ const els = {
 
 /* Last value written to each element, so we can skip unchanged writes. */
 const shown = {};
+
+/* Whether the player has sprinted yet. The keyboard hint is there to be
+ * outgrown: once they have used it, it goes and does not come back. */
+let sprintFound = false;
 
 function setText(element, text) {
     if (!element || shown[element.id] === text) return;
@@ -59,11 +65,88 @@ function setClass(element, className, on) {
     element.classList.toggle(className, on);
 }
 
-/* ===== What to tell the player to do ===== */
+/* ===== What to tell the player to do =====
+ *
+ * Every mode is played in the same house, so most of what the HUD says
+ * is the same in all of them. Only the lines that genuinely differ are
+ * written down per mode; anything a mode leaves out falls through to
+ * classic, which is why adding a mode here is a few strings rather than
+ * another arm of a switch.
+ *
+ * The keys are the mode ids from the server's modes.py, and test_modes.py
+ * checks that neither list has grown an entry the other has never heard
+ * of — a mode with no copy would silently tell people to do the wrong
+ * thing, which is worse than one that fails a test.
+ */
+
+const OBJECTIVES = {
+    classic: {
+        counting: {
+            tagger: "Eyes shut. Count it out.",
+            hider: "Run! Get well clear of the base, then hide.",
+        },
+        hunting: {
+            tagger: "Search the house. Touch a hider to freeze them.",
+            frozen: "Frozen. Sit tight — a free hider can thaw you.",
+            safe: "You made it home. Now the rest have to.",
+            hider: "Get back to the base — or go and thaw a frozen friend.",
+        },
+    },
+
+    infection: {
+        hunting: {
+            tagger: "Hunt. Everyone you touch joins you.",
+            hider: "Get home. Every catch puts another seeker in the house.",
+        },
+    },
+
+    juggernaut: {
+        counting: {
+            hider: "Run! There is nowhere to hide in this one.",
+        },
+        hunting: {
+            tagger: "Run them down. Nothing in this house hides anybody.",
+            frozen: "Caught. No thawing in this one — sit it out.",
+            hider: "Straight home. The furniture will not save you.",
+        },
+    },
+
+    blackout: {
+        counting: {
+            tagger: "Eyes shut. You get a torch when you open them.",
+            hider: "Run — it is pitch dark out there. Feel your way.",
+        },
+        hunting: {
+            tagger: "Sweep the house. Your torch points wherever you last moved.",
+            hider: "Stay out of the beam. Behind them is the safest place there is.",
+        },
+    },
+
+    // Backwards: the lone player is the one hiding, and everybody else is
+    // a "tagger" as far as the round is concerned.
+    sardines: {
+        counting: {
+            tagger: "Eyes shut. Count, then go and look.",
+            hider: "You are the only one hiding. Find somewhere good.",
+        },
+        hunting: {
+            tagger: "Find them. Whoever is last to work it out loses.",
+            hider: "Sit tight and stay quiet. They have to come to you.",
+        },
+    },
+};
+
+/* A line for this mode, or the classic one it did not bother to change. */
+function line(mode, phase, key) {
+    return OBJECTIVES[mode]?.[phase]?.[key]
+        ?? OBJECTIVES.classic[phase]?.[key]
+        ?? "";
+}
 
 function objectiveFor(round, me) {
     const role = me?.role;
     const state = me?.state;
+    const mode = round.mode;
 
     switch (round.phase) {
         case "lobby":
@@ -71,29 +154,44 @@ function objectiveFor(round, me) {
         case "gathering":
             return "Everyone to the base. Hold still…";
         case "counting":
-            return role === "tagger"
-                ? "Eyes shut. Count it out."
-                : "Run! Get well clear of the base, then hide.";
+            return line(mode, "counting", role === "tagger" ? "tagger" : "hider");
         case "hunting":
-            if (role === "tagger") return "Search the house. Touch a hider to freeze them.";
-            if (state === "frozen") return "Frozen. Sit tight — a free hider can thaw you.";
-            if (state === "safe") return "You made it home. Now the rest have to.";
-            return "Get back to the base — or go and thaw a frozen friend.";
+            if (role === "tagger") return line(mode, "hunting", "tagger");
+            if (state === "frozen") return line(mode, "hunting", "frozen");
+            if (state === "safe") return line(mode, "hunting", "safe");
+            return line(mode, "hunting", "hider");
         default:
             return "";
     }
 }
 
 function outcomeTitle(round) {
+    // Everybody ends up hidden in Sardines, so "hiders win" is true but
+    // useless. What the round decided is who was last to work it out,
+    // and the server puts that in the note.
+    if (round.mode === "sardines") {
+        return round.note ? "Found them" : "Everybody found them";
+    }
+
     if (round.winner === "hiders") return "Hiders win";
-    if (round.winner === "tagger") return `${round.tagger || "The seeker"} wins`;
-    return "Round over";
+    if (round.winner !== "tagger") return "Round over";
+
+    // In a mode where the tagged change sides, naming the player who
+    // started it as the winner is wrong by the end — most of the room is
+    // seeking by then.
+    if (round.mode === "infection") return "The seekers win";
+    return `${round.tagger || "The seeker"} wins`;
 }
 
 function outcomeNote(round) {
     if (round.note) return round.note;
+    if (round.mode === "sardines") return "Everybody squeezed in.";
     if (round.winner === "hiders") return "Everybody made it home.";
-    if (round.winner === "tagger") return "Nobody left to find.";
+    if (round.winner === "tagger") {
+        return round.mode === "infection"
+            ? "Everybody was caught in the end."
+            : "Nobody left to find.";
+    }
     return "";
 }
 
@@ -121,9 +219,33 @@ function drawTally(round) {
         return;
     }
 
-    const { hiders, frozen, safe } = round.tally;
+    const { hiders, frozen, safe, seekers } = round.tally;
+
+    // Backwards: there is one person hiding and a roomful looking, and
+    // the number worth watching is how few are still out there.
+    if (round.mode === "sardines") {
+        const hiding = hiders === 1 ? "1 hiding" : `${hiders} squeezed in`;
+        setText(els.tally, `${seekers} still looking · ${hiding}`);
+        return;
+    }
+
+    // Naming the seeker is the useful thing while there is one of them.
+    // Once the tagged start changing sides it is the count that matters,
+    // and "Alice seeking" would be quietly false.
+    if (round.mode === "infection") {
+        setText(els.tally, `${seekers} seeking · ${hiders - safe} still hiding · ${safe} home`);
+        return;
+    }
+
     const seeking = round.tagger ? `${round.tagger} seeking` : "no seeker";
     setText(els.tally, `${seeking} · ${safe}/${hiders} home · ${frozen} frozen`);
+}
+
+/* The mode, once there is a round to have one. */
+function drawMode(round) {
+    const playing = round.phase !== "lobby";
+    setHidden(els.mode, !playing);
+    if (playing) setText(els.mode, round.modeName);
 }
 
 function drawClock(round) {
@@ -157,6 +279,10 @@ function drawCountdown(round, me) {
         setText(els.countdownCaption, "Getting everyone in…");
     } else if (me?.role === "tagger") {
         setText(els.countdownCaption, "…counting");
+    } else if (round.mode === "sardines") {
+        // One of you is hiding and the rest of the house is counting, so
+        // naming a single seeker would be picking one of them at random.
+        setText(els.countdownCaption, "Everyone else is counting");
     } else {
         setText(els.countdownCaption, `${round.tagger || "The seeker"} is counting`);
     }
@@ -169,6 +295,7 @@ function drawCountdown(round, me) {
  * doing something for you. */
 function drawHidingNote(map, localPlayer, round, me) {
     const eligible = round.phase === "hunting"
+        && round.rules.hidingConceals
         && me?.role === "hider"
         && me?.state === "free";
 
@@ -197,6 +324,14 @@ function drawStamina() {
 
     setClass(els.stamina, "is-spent", spent);
     setClass(els.stamina, "is-full", percent === 100);
+
+    // The bar only drains while sprinting, so a level below full is
+    // proof the player has found Shift. Latched, because the bar
+    // refills and every round starts it back at one.
+    if (!sprintFound && level < 1) {
+        sprintFound = true;
+        setClass(els.keyHint, "is-learnt", true);
+    }
 }
 
 
@@ -280,6 +415,7 @@ export function drawHud({ map, localPlayer, myName }) {
 
     drawRoleChip(round, me);
     drawTally(round);
+    drawMode(round);
     drawClock(round);
     drawCountdown(round, me);
     drawHidingNote(map, localPlayer, round, me);

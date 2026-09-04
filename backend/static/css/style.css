@@ -648,3 +648,146 @@ body {
 .rules__seek {
     color: var(--danger);
 }
+
+/* ===== Keycaps =====
+   Used by the lobby to list the controls and by the game to hint at
+   them, so they live here with the other shared pieces rather than in
+   either page's own stylesheet. */
+
+.kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 21px;
+    height: 21px;
+    padding: 0 5px;
+
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* Thicker underside, so it reads as a key with a bit of depth. */
+    border-bottom-width: 2px;
+    border-radius: 5px;
+}
+
+.kbd--wide { padding: 0 9px; }
+
+/* ===== Controls list =====
+   Keys on the left, what they do on the right, in the lobby. */
+
+.controls-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text-dim);
+}
+
+.controls-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+/* Fixed width so the two descriptions line up under each other rather
+   than starting wherever their own row of keys happens to end. */
+.controls-list__keys {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 3px;
+    width: 132px;
+}
+
+.controls-list__or {
+    margin: 0 2px;
+    font-size: 11px;
+    color: var(--text-faint);
+}
+
+/* On a narrow phone the keys and the words stack instead of squeezing. */
+@media (max-width: 400px) {
+    .controls-list li {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .controls-list__keys { width: auto; }
+}
+
+/* ===== Mode picker =====
+   Everybody sees the list; only the host gets to press it. A mode nobody
+   can choose is still worth showing, because it tells the rest of the
+   room what they are about to be dropped into. */
+
+.modes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mode {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    padding: 11px 14px;
+    text-align: left;
+
+    font-family: inherit;
+    color: var(--text-dim);
+
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mode:hover { background: rgba(255, 255, 255, 0.07); }
+
+.mode__name {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.mode__blurb {
+    font-size: 12.5px;
+    line-height: 1.4;
+}
+
+/* The one the room is set to. */
+.mode.is-selected {
+    background: rgba(77, 163, 255, 0.13);
+    border-color: var(--accent);
+}
+
+.mode.is-selected .mode__name { color: var(--accent); }
+
+/* Everyone who is not the host. Still legible — they need to read it —
+   but plainly not something they can press. */
+.mode.is-locked {
+    cursor: default;
+    opacity: 0.75;
+}
+
+.mode.is-locked:hover { background: rgba(255, 255, 255, 0.035); }
+
+.mode.is-locked.is-selected {
+    opacity: 1;
+    background: rgba(77, 163, 255, 0.13);
+}

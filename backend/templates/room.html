@@ -27,12 +27,35 @@
 
     <div id="emojiPicker" class="emoji-grid" hidden></div>
 
+    {# The mode. Rendered from the server's own list so the two cannot
+       drift, and shown to everybody: only the host can change it, but
+       everybody needs to know what they are about to play. #}
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">Mode</h2>
+        </div>
+
+        <div id="modePicker" class="modes">
+            {% for mode in modes %}
+            <button type="button" class="mode" data-mode="{{ mode.id }}">
+                <span class="mode__name">{{ mode.name }}</span>
+                <span class="mode__blurb">{{ mode.blurb }}</span>
+            </button>
+            {% endfor %}
+        </div>
+
+        <p id="modeNote" class="hint" hidden>The host picks the mode.</p>
+    </section>
+
     {# The rules, where people can read them before they are dropped into
        a dark house and have to guess. #}
     <section class="card">
         <div class="card__header">
             <h2 class="card__title">How it goes</h2>
         </div>
+
+        <p class="hint">The rules of Classic. Every mode changes some of
+           them — the card above says which.</p>
 
         <ol class="rules">
             <li>Everyone starts on the <strong class="rules__safe">home base</strong>
@@ -48,6 +71,36 @@
             <li>Hiders win by getting <strong>all</strong> of themselves back
                 onto the base. The seeker wins by freezing everyone.</li>
         </ol>
+    </section>
+
+    {# The controls, before people are dropped into a dark house rather
+       than after. Touch players can see the joystick when they get there;
+       a keyboard player has nothing to look at, so Shift went unfound. #}
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">Controls</h2>
+        </div>
+
+        <ul class="controls-list">
+            <li>
+                <span class="controls-list__keys">
+                    <kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd>
+                    <span class="controls-list__or">or</span>
+                    <kbd class="kbd">&uarr;</kbd><kbd class="kbd">&larr;</kbd><kbd class="kbd">&darr;</kbd><kbd class="kbd">&rarr;</kbd>
+                </span>
+                <span>Move</span>
+            </li>
+            <li>
+                <span class="controls-list__keys">
+                    <kbd class="kbd kbd--wide">Shift</kbd>
+                </span>
+                <span>Run &mdash; but the bar at the bottom runs out, and
+                      empties into a walk until it comes back.</span>
+            </li>
+        </ul>
+
+        <p class="hint">On a phone: the pad on the left steers, and
+           <strong>B</strong> on the right runs.</p>
     </section>
 
     <p id="messageBox" class="notice"></p>
