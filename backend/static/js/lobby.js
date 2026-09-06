@@ -8,6 +8,7 @@
  */
 
 import {
+    changeBots,
     changeEmoji,
     fetchRoom,
     kickPlayer,
@@ -48,6 +49,10 @@ const els = {
     modeNote: document.getElementById("modeNote"),
     volunteerButton: document.getElementById("volunteerButton"),
     volunteerNote: document.getElementById("volunteerNote"),
+    botCard: document.getElementById("botCard"),
+    botCount: document.getElementById("botCount"),
+    addBotButton: document.getElementById("addBotButton"),
+    removeBotButton: document.getElementById("removeBotButton"),
     message: document.getElementById("messageBox"),
     chatToggle: document.getElementById("chatToggle"),
     chatPanel: document.getElementById("chatPanel"),
@@ -74,6 +79,13 @@ function playerRow(player) {
     name.textContent = player.name;
 
     row.append(emoji, name);
+
+    if (player.bot) {
+        const badge = document.createElement("span");
+        badge.className = "player__badge player__badge--bot";
+        badge.textContent = "Bot";
+        row.appendChild(badge);
+    }
 
     // Who has offered to be the seeker, so the room can see the draw it
     // is about to make rather than being surprised by it.
@@ -151,6 +163,30 @@ function renderPlayers(players) {
     els.waitingNote.hidden = amHost;
 
     renderVolunteer(players, me);
+    renderBots(players);
+}
+
+/* =========================
+ * Bots
+ * ========================= */
+
+/*
+ * Everybody sees how many there are, since it changes what the round is;
+ * only the host gets to change it, the same way the mode works.
+ */
+function renderBots(players) {
+    const count = players.filter((p) => p.bot).length;
+
+    els.botCount.textContent = count;
+    els.addBotButton.hidden = !amHost;
+    els.removeBotButton.hidden = !amHost;
+    els.removeBotButton.disabled = count === 0;
+}
+
+async function changeBotCount(action) {
+    const result = await changeBots(session.code, session.name, action);
+    els.message.textContent = result.success
+        ? "" : (result.message || "Could not do that.");
 }
 
 /* =========================
@@ -399,6 +435,8 @@ function start() {
         button.addEventListener("click", () => pickMode(button.dataset.mode));
     }
     els.volunteerButton.addEventListener("click", toggleVolunteer);
+    els.addBotButton.addEventListener("click", () => changeBotCount("add"));
+    els.removeBotButton.addEventListener("click", () => changeBotCount("remove"));
     els.startButton.addEventListener("click", () => {
         els.startButton.disabled = true;
         socket.emit("start_game_request", { code: session.code });

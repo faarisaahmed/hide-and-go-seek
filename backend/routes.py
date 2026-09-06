@@ -3,6 +3,7 @@
 
 from flask import Blueprint, jsonify, render_template, request
 
+import bots
 import events
 import modes
 import rooms
@@ -181,6 +182,38 @@ def kick():
     events.announce_kick(code, sid)
     _push_room(code)
     return jsonify({"success": True})
+
+
+@bp.route("/bots", methods=["POST"])
+def change_bots():
+    """The host added or removed a bot.
+
+    Host-only, checked here. A bot is a player with nobody behind it, so
+    letting anybody conjure one would be letting anybody stuff the room.
+    """
+    data = _body()
+    code = data.get("code")
+
+    if rooms.get(code) is None:
+        return jsonify({"success": False, "message": "Room not found"}), 404
+
+    if not rooms.is_host(code, data.get("name")):
+        return jsonify({"success": False,
+                        "message": "Only the host can add bots"}), 403
+
+    action = data.get("action")
+    if action == "add":
+        ok, message = bots.add(code)
+    elif action == "remove":
+        ok, message = bots.remove_one(code)
+    else:
+        return jsonify({"success": False, "message": "Add or remove?"}), 400
+
+    if not ok:
+        return jsonify({"success": False, "message": message}), 400
+
+    _push_room(code)
+    return jsonify({"success": True, "bots": bots.count(code)})
 
 
 @bp.route("/send_chat", methods=["POST"])

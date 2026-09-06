@@ -112,9 +112,13 @@ def _expire(code, now=None):
         del _rooms[code]
         return None
 
-    # Whoever has been here longest takes over if the host is gone.
+    # Whoever has been here longest takes over if the host is gone —
+    # somebody real, since a bot cannot press start.
     if not any(p["isHost"] for p in room["players"].values()):
-        next(iter(room["players"].values()))["isHost"] = True
+        heir = next((p for p in room["players"].values() if not p["is_bot"]),
+                    None)
+        if heir is not None:
+            heir["isHost"] = True
 
     return room
 
@@ -127,6 +131,21 @@ def _expire_all():
 # ---------------------------------------------------------------------------
 # Rooms
 # ---------------------------------------------------------------------------
+
+_bots_made = 0
+
+
+def _bot_id():
+    """A stable id for a bot, in the shape of a socket id but not one.
+
+    Deliberately prefixed: anything that emits to it is emitting into a
+    Socket.IO room that does not exist, which is silent rather than an
+    error, and the prefix is what makes that obvious in a log.
+    """
+    global _bots_made
+    _bots_made += 1
+    return f"bot:{_bots_made}"
+
 
 def _new_room_code():
     while True:
@@ -144,21 +163,34 @@ def _free_emoji(room):
     return random.choice(config.EMOJI_POOL)
 
 
-def _new_player(room, name, is_host):
+def _new_player(room, name, is_host, is_bot=False):
     return {
         "name": name,
         "emoji": _free_emoji(room),
         "isHost": is_host,
         "x": config.SPAWN_X,
         "y": config.SPAWN_Y,
-        "sid": None,
+
+        # A bot is a player with nobody behind it. It still gets an id in
+        # this field, because every other part of the protocol keys off
+        # one — who has been told about whom, who moved, who left — and
+        # inventing a second kind of identity for the sake of it would
+        # mean touching all of that. Nothing is ever emitted to it; see
+        # events._update_view.
+        "sid": _bot_id() if is_bot else None,
+        "is_bot": is_bot,
+        # Whatever the bot is currently thinking, owned by bots.py.
+        "brain": None,
+
         # When their socket dropped, or None while connected. Drives expiry.
         # Set at creation too, so a room nobody ever connects to is cleaned
-        # up rather than lingering forever.
-        "left_at": time.monotonic(),
+        # up rather than lingering forever. A bot never leaves of its own
+        # accord, so it never expires.
+        "left_at": None if is_bot else time.monotonic(),
         # True once they have been placed in the world. Survives a dropped
-        # socket, which is what lets a reconnect resume in place.
-        "in_game": False,
+        # socket, which is what lets a reconnect resume in place. A bot is
+        # in the world from the moment it is added.
+        "in_game": is_bot,
 
         # Whether they have put their hand up to be the seeker. A
         # standing offer rather than a per-round one: somebody who likes
@@ -236,6 +268,7 @@ def public_view(code):
                 "isHost": p["isHost"],
                 "connected": p["sid"] is not None,
                 "volunteer": p["volunteer"],
+                "bot": p["is_bot"],
             }
             for p in room["players"].values()
         ],
@@ -270,6 +303,31 @@ def set_mode(code, mode_id):
 
     room["mode"] = mode_id
     return True, None
+
+
+def add_bot(code, name, x, y):
+    """Put a bot in a room, already standing in the world.
+
+    Returns the player record, or None if the name is taken. Bots skip
+    the lobby entirely: there is nobody to press "join", and a bot that
+    had to be waited for would hold up the count.
+    """
+    room = get(code)
+    if room is None or _key(name) in room["players"]:
+        return None
+
+    bot = _new_player(room, name, is_host=False, is_bot=True)
+    bot["x"], bot["y"] = x, y
+    room["players"][_key(name)] = bot
+    return bot
+
+
+def bots_in(room):
+    return [p for p in room["players"].values() if p["is_bot"]]
+
+
+def humans_in(room):
+    return [p for p in room["players"].values() if not p["is_bot"]]
 
 
 def add_player(code, name):

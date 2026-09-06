@@ -16,10 +16,13 @@ makes a hiding spot worth using: a client cannot draw what it was never
 sent. See ``game.can_see``.
 """
 
+import time
+
 from flask import request
 from flask_socketio import emit
 from flask_socketio import join_room as subscribe_to_room
 
+import bots
 import config
 import game
 import rooms
@@ -59,7 +62,7 @@ def _update_view(room, viewer, target, moved=None):
     slip out of sight, rather than on every frame they stay out of it.
     """
     sid = viewer["sid"]
-    if sid is None:
+    if sid is None or viewer["is_bot"]:
         return
 
     if game.can_see(room, viewer, target):
@@ -141,7 +144,7 @@ def _correct(player, reason=None):
     say "you were camping the base" rather than leaving somebody to work
     out for themselves why they are suddenly in the cellar.
     """
-    if player["sid"] is None:
+    if player["sid"] is None or player["is_bot"]:
         return
 
     socketio.emit("position_correction",
@@ -183,18 +186,52 @@ def _ensure_ticking():
 
 
 def _tick():
+    """The clock, and the only thing that moves a bot.
+
+    Human players report their own positions; a bot has nobody to do that
+    for it, so its whole existence happens here — decide, step, relay,
+    then resolve the round as usual so a bot's tag lands like anyone
+    else's.
+    """
+    last = time.monotonic()
+
     while True:
         socketio.sleep(config.GAME_TICK_SECONDS)
+
+        now = time.monotonic()
+        # Measured rather than assumed: a busy server sleeps for longer
+        # than it was asked to, and bots that moved a fixed step per tick
+        # would slow down exactly when everything else did.
+        elapsed = min(now - last, config.GAME_TICK_SECONDS * 4)
+        last = now
 
         for code in rooms.active_codes():
             # One bad room must not stop the clock for every other room,
             # and there is nobody to hand the exception to out here.
             try:
+                _step_bots(code, elapsed, now)
+
                 changes = game.resolve(code, force=True)
                 if changes:
                     _publish(code, changes)
             except Exception:  # noqa: BLE001
                 continue
+
+
+def _step_bots(code, elapsed, now):
+    moved, shouted = bots.step(code, elapsed, now)
+    if not moved and not shouted:
+        return
+
+    room = rooms.get(code)
+    if room is None:
+        return
+
+    for bot in moved:
+        _relay_position(room, code, bot)
+
+    for bot in shouted:
+        broadcast_shout(room, bot)
 
 
 # ---------------------------------------------------------------------------
@@ -214,9 +251,11 @@ def on_join_lobby(data):
     subscribe_to_room(code)
 
     # Being in the lobby means being out of the world. Once the last
-    # player has backed out, the round is finished with rather than
-    # sitting there half-played.
-    if not rooms.players_in_game(code):
+    # *person* has backed out, the round is finished with rather than
+    # sitting there half-played. Bots are never out of the world, so
+    # counting them here would leave a room of them hunting an empty
+    # house forever.
+    if not [p for p in rooms.players_in_game(code) if not p["is_bot"]]:
         game.reset(code)
 
     emit("room_updated", rooms.public_view(code))
@@ -410,8 +449,22 @@ def on_shout(data):
     # they are alone at the far end of the house.
     emit("shout_made", {})
 
+    broadcast_shout(room, player)
+
+
+def broadcast_shout(room, player):
+    """Send one player's noise to everybody in earshot.
+
+    Shared with the bots, which shout for exactly one reason: a frozen
+    one that could not call out would simply never be found.
+    """
+    now = time.monotonic()
+
     for listener, payload in game.earshot(room, player):
-        socketio.emit("shout_heard", payload, to=listener["sid"])
+        if listener["is_bot"]:
+            bots.hear(listener, payload, now)
+        else:
+            socketio.emit("shout_heard", payload, to=listener["sid"])
 
 
 @socketio.on("disconnect")

@@ -28,6 +28,25 @@
 
     <div id="emojiPicker" class="emoji-grid" hidden></div>
 
+    {# Bots, so a room of two is still a game. Host-only: everybody else
+       sees the count and nothing to press. #}
+    <section class="card" id="botCard">
+        <div class="card__header">
+            <h2 class="card__title">Bots</h2>
+            <span id="botCount" class="pill">0</span>
+        </div>
+
+        <div class="row">
+            <button type="button" id="removeBotButton" class="btn">&minus;</button>
+            <button type="button" id="addBotButton"
+                    class="btn btn--primary btn--grow">Add a bot</button>
+        </div>
+
+        <p class="hint">They search the house, run from you, break for the
+           base and stop to thaw a frozen friend. They see exactly what
+           you see &mdash; walls, darkness and all.</p>
+    </section>
+
     {# Being the seeker used to be something that happened to you. #}
     <section class="card">
         <div class="card__header">
