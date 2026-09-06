@@ -444,6 +444,15 @@ body {
     color: var(--accent);
 }
 
+/* A hand up for the seeker's job, in the colour the seeker is drawn in
+   so the offer and the role look like the same thing. */
+.player__badge--volunteer {
+    padding: 2px 7px;
+    color: var(--danger);
+    background: rgba(255, 107, 129, 0.14);
+    border-radius: 999px;
+}
+
 /* Your own row: tappable, since it opens the emoji picker. */
 .player--me {
     background: rgba(77, 163, 255, 0.1);
@@ -620,6 +629,75 @@ body {
     padding: 11px 14px;
 }
 
+/* ===== Volunteering =====
+   A toggle rather than a form: the only state it has is whether your
+   hand is up. Off it reads as an offer, on it reads as a commitment,
+   which is why it changes colour rather than growing a tick. */
+
+.volunteer {
+    width: 100%;
+    padding: 13px 16px;
+
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-dim);
+
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+
+    transition: background 0.15s ease, color 0.15s ease,
+                border-color 0.15s ease;
+}
+
+.volunteer:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: var(--text);
+}
+
+.volunteer.is-on {
+    color: var(--danger);
+    background: rgba(255, 107, 129, 0.14);
+    border-color: rgba(255, 107, 129, 0.5);
+}
+
+/* ===== Removing a player =====
+   Sits on the right of a row and only appears for the host. Quiet until
+   it is pointed at, because it is the one control in the lobby that
+   takes something away. */
+
+.player__remove {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    margin-left: 2px;
+
+    display: grid;
+    place-items: center;
+
+    font-family: var(--font);
+    font-size: 17px;
+    line-height: 1;
+    color: var(--text-faint);
+
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    cursor: pointer;
+
+    transition: color 0.12s ease, background 0.12s ease,
+                border-color 0.12s ease;
+}
+
+.player__remove:hover,
+.player__remove:focus-visible {
+    color: var(--danger);
+    background: rgba(255, 107, 129, 0.14);
+    border-color: rgba(255, 107, 129, 0.4);
+}
+
 /* ===== Rules ===== */
 
 .rules {
@@ -695,20 +773,22 @@ body {
     color: var(--text-dim);
 }
 
+/* A grid rather than a flex row: the keys column is as wide as its
+   widest row and the descriptions line up under each other, and — the
+   reason it changed — a row of keycaps too long for the column pushes
+   the column wider instead of running over the words beside it. */
 .controls-list li {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(132px, max-content) 1fr;
+    gap: 4px 12px;
     align-items: baseline;
-    gap: 12px;
 }
 
-/* Fixed width so the two descriptions line up under each other rather
-   than starting wherever their own row of keys happens to end. */
 .controls-list__keys {
     display: inline-flex;
-    flex: 0 0 auto;
+    flex-wrap: wrap;
     align-items: center;
     gap: 3px;
-    width: 132px;
 }
 
 .controls-list__or {
@@ -717,14 +797,14 @@ body {
     color: var(--text-faint);
 }
 
-/* On a narrow phone the keys and the words stack instead of squeezing. */
-@media (max-width: 400px) {
+/* On a narrow screen the keys and the words stack instead of squeezing.
+   The threshold is where the longest row — WASD, "or", four arrows —
+   stops leaving room for a readable sentence beside it. */
+@media (max-width: 560px) {
     .controls-list li {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         gap: 5px;
     }
-
-    .controls-list__keys { width: auto; }
 }
 
 /* ===== Mode picker =====

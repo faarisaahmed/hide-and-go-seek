@@ -22,10 +22,23 @@
         </div>
 
         <ul id="playerList" class="players"></ul>
-        <p class="hint">Tap yourself to change your emoji</p>
+        <p class="hint">Tap yourself to change your emoji. The host can
+           remove anybody else with the &times; on their row.</p>
     </section>
 
     <div id="emojiPicker" class="emoji-grid" hidden></div>
+
+    {# Being the seeker used to be something that happened to you. #}
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">Who is it?</h2>
+        </div>
+
+        <button type="button" id="volunteerButton" class="volunteer"
+                aria-pressed="false">I'll be the seeker</button>
+
+        <p id="volunteerNote" class="hint"></p>
+    </section>
 
     {# The mode. Rendered from the server's own list so the two cannot
        drift, and shown to everybody: only the host can change it, but

@@ -206,11 +206,7 @@ def start(code):
     if len(players) < config.MIN_PLAYERS:
         return False, f"You need at least {config.MIN_PLAYERS} players"
 
-    # Spread the odd job around: anyone but the player who had it last
-    # round, unless they are the only candidate left.
-    keys = [key for key, _ in players]
-    candidates = [key for key in keys if key != game["last_tagger"]] or keys
-    chosen = random.choice(candidates)
+    chosen = random.choice(_candidates(room, game, [key for key, _ in players]))
 
     mode = rooms.mode_of(room)
     rules = modes.get(mode)
@@ -243,6 +239,26 @@ def start(code):
         player["x"], player["y"] = maps.spawn_point(game["map"], index)
 
     return True, None
+
+
+def _candidates(room, game, keys):
+    """Who is in the draw to be the odd one out this round.
+
+    Anybody who put their hand up in the lobby, if anybody did. Wanting
+    to be the seeker is the best possible reason to be one, and it beats
+    the rotation outright: somebody who volunteers two rounds running is
+    asking, not being landed with it.
+
+    Failing that, an even draw among everybody — minus whoever had it
+    last round, so the same person is not it twice in a row when there is
+    somebody else to pick. With only one candidate left that falls back
+    to them, or nobody would be seeking at all.
+    """
+    offered = rooms.volunteers(room)
+    if offered:
+        return offered
+
+    return [key for key in keys if key != game["last_tagger"]] or keys
 
 
 def reset(code):

@@ -3,6 +3,7 @@
 
 from flask import Blueprint, jsonify, render_template, request
 
+import events
 import modes
 import rooms
 from extensions import socketio
@@ -112,6 +113,72 @@ def set_mode():
     if not ok:
         return jsonify({"success": False, "message": message}), 400
 
+    _push_room(code)
+    return jsonify({"success": True})
+
+
+@bp.route("/volunteer", methods=["POST"])
+def volunteer():
+    """A player put their hand up to be the seeker, or took it down.
+
+    For themselves only. There is no host check here on purpose: this is
+    the one decision in the lobby that is nobody else's, and the payload
+    names no target, so a client can only ever speak for whoever it is
+    logged in as.
+    """
+    data = _body()
+    code = data.get("code")
+
+    ok, message = rooms.set_volunteer(code, data.get("name"),
+                                      data.get("volunteer"))
+    if not ok:
+        status = 404 if message == "Room not found" else 400
+        return jsonify({"success": False, "message": message}), status
+
+    _push_room(code)
+    return jsonify({"success": True})
+
+
+@bp.route("/kick", methods=["POST"])
+def kick():
+    """The host removed somebody from the room.
+
+    Host-only and checked here rather than trusted from the client, for
+    the same reason as the mode: hiding a button is not the same as
+    enforcing what it does. The host cannot remove themselves — leaving
+    is what the Leave button is for, and letting them do it here would
+    hand the room to somebody by accident.
+    """
+    data = _body()
+    code = data.get("code")
+    target = data.get("target")
+
+    if rooms.get(code) is None:
+        return jsonify({"success": False, "message": "Room not found"}), 404
+
+    if not rooms.is_host(code, data.get("name")):
+        return jsonify({"success": False,
+                        "message": "Only the host can remove players"}), 403
+
+    if isinstance(target, str) and target.strip().lower() == \
+            str(data.get("name")).strip().lower():
+        return jsonify({"success": False,
+                        "message": "You cannot remove yourself"}), 400
+
+    player = rooms.find_player(code, target)
+    if player is None:
+        return jsonify({"success": False,
+                        "message": "They are not in this room"}), 400
+
+    # Told before they are dropped, so their page can take itself home
+    # rather than sitting on a room it is no longer part of.
+    sid = player["sid"]
+
+    ok, message = rooms.remove_player(code, target)
+    if not ok:
+        return jsonify({"success": False, "message": message}), 400
+
+    events.announce_kick(code, sid)
     _push_room(code)
     return jsonify({"success": True})
 

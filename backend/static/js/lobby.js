@@ -7,7 +7,14 @@
  * safety net for a missed push.
  */
 
-import { changeEmoji, fetchRoom, sendChat, setMode } from "./api.js";
+import {
+    changeEmoji,
+    fetchRoom,
+    kickPlayer,
+    sendChat,
+    setMode,
+    setVolunteer,
+} from "./api.js";
 import { goHome, requireSession } from "./session.js";
 
 /* Emoji a player can choose from. Must stay in step with EMOJI_POOL in
@@ -39,6 +46,8 @@ const els = {
     emojiPicker: document.getElementById("emojiPicker"),
     modePicker: document.getElementById("modePicker"),
     modeNote: document.getElementById("modeNote"),
+    volunteerButton: document.getElementById("volunteerButton"),
+    volunteerNote: document.getElementById("volunteerNote"),
     message: document.getElementById("messageBox"),
     chatToggle: document.getElementById("chatToggle"),
     chatPanel: document.getElementById("chatPanel"),
@@ -66,6 +75,15 @@ function playerRow(player) {
 
     row.append(emoji, name);
 
+    // Who has offered to be the seeker, so the room can see the draw it
+    // is about to make rather than being surprised by it.
+    if (player.volunteer) {
+        const hand = document.createElement("span");
+        hand.className = "player__badge player__badge--volunteer";
+        hand.textContent = "Wants it";
+        row.appendChild(hand);
+    }
+
     if (player.isHost) {
         const badge = document.createElement("span");
         badge.className = "player__badge";
@@ -82,12 +100,45 @@ function playerRow(player) {
         // Our own row doubles as the emoji picker trigger.
         row.classList.add("player--me");
         row.addEventListener("click", toggleEmojiPicker);
+    } else if (amHost) {
+        // Only on other people's rows, and only for the host. The server
+        // checks that too — hiding a button is not enforcing it.
+        row.appendChild(removeButton(player));
     }
 
     return row;
 }
 
+function removeButton(player) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "player__remove";
+    button.title = `Remove ${player.name}`;
+    button.setAttribute("aria-label", `Remove ${player.name}`);
+    button.textContent = "\u00d7";
+
+    button.addEventListener("click", (event) => {
+        // The row behind it opens the emoji picker; this is not that.
+        event.stopPropagation();
+        remove(player.name);
+    });
+
+    return button;
+}
+
+async function remove(name) {
+    const result = await kickPlayer(session.code, session.name, name);
+    els.message.textContent = result.success
+        ? "" : (result.message || "Could not remove them.");
+}
+
 function renderPlayers(players) {
+    const me = players.find((p) => p.name === session.name);
+
+    // Worked out before the rows are built, since it decides whether
+    // each of them gets a remove button.
+    amHost = Boolean(me && me.isHost);
+
     const rows = document.createDocumentFragment();
     for (const player of players) {
         rows.appendChild(playerRow(player));
@@ -96,10 +147,60 @@ function renderPlayers(players) {
     els.playerList.replaceChildren(rows);
     els.playerCount.textContent = players.length;
 
-    const me = players.find((p) => p.name === session.name);
-    amHost = Boolean(me && me.isHost);
     els.startButton.hidden = !amHost;
     els.waitingNote.hidden = amHost;
+
+    renderVolunteer(players, me);
+}
+
+/* =========================
+ * Volunteering
+ * ========================= */
+
+/*
+ * Being the seeker used to be something that happened to you. Now you
+ * can ask for it: if anybody has, the round draws from them, and if
+ * nobody has it is an even draw among everybody who did not do it last
+ * time.
+ */
+function renderVolunteer(players, me) {
+    const wanted = Boolean(me && me.volunteer);
+    const others = players.filter((p) => p.volunteer && p.name !== session.name);
+
+    els.volunteerButton.classList.toggle("is-on", wanted);
+    els.volunteerButton.setAttribute("aria-pressed", String(wanted));
+    els.volunteerButton.textContent = wanted
+        ? "You are up for being the seeker"
+        : "I'll be the seeker";
+
+    els.volunteerNote.textContent = describeDraw(wanted, others);
+}
+
+function describeDraw(wanted, others) {
+    if (!wanted && others.length === 0) {
+        return "Nobody has asked, so it is an even draw between everybody.";
+    }
+
+    if (wanted && others.length === 0) {
+        return "You are the only one asking, so it is you.";
+    }
+
+    const count = others.length + (wanted ? 1 : 0);
+    const who = others.map((p) => p.name).join(", ");
+
+    return wanted
+        ? `Drawn between the ${count} of you: you and ${who}.`
+        : `${who} asked for it, so the draw is between them.`;
+}
+
+async function toggleVolunteer() {
+    const wanted = !els.volunteerButton.classList.contains("is-on");
+
+    const result = await setVolunteer(session.code, session.name, wanted);
+    if (!result.success) {
+        els.message.textContent = result.message || "Could not do that.";
+    }
+    // The server pushes room_updated to everyone, including us.
 }
 
 /* =========================
@@ -297,6 +398,7 @@ function start() {
     for (const button of els.modePicker.querySelectorAll(".mode")) {
         button.addEventListener("click", () => pickMode(button.dataset.mode));
     }
+    els.volunteerButton.addEventListener("click", toggleVolunteer);
     els.startButton.addEventListener("click", () => {
         els.startButton.disabled = true;
         socket.emit("start_game_request", { code: session.code });
@@ -317,6 +419,13 @@ function start() {
     // Anything that changes the room — a join, an emoji, a message, someone
     // leaving — arrives here, so the list stays live without polling for it.
     socket.on("room_updated", renderRoom);
+
+    // The host removed us. Say so and go home, rather than sitting on a
+    // room we are no longer part of.
+    socket.on("kicked", () => {
+        els.message.textContent = "The host removed you from the room.";
+        setTimeout(goHome, 1800);
+    });
 
     // The room expired while we were away, so there is nothing to show.
     socket.on("join_rejected", (data) => {

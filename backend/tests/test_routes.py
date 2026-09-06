@@ -56,6 +56,7 @@ def test_room_info(client):
         "emoji": config.EMOJI_POOL[0],
         "isHost": True,
         "connected": False,
+        "volunteer": False,
     }
 
 
@@ -68,7 +69,8 @@ def test_room_info_does_not_leak_socket_ids_or_positions(client):
     rooms.enter_game("secret-sid", code, "Alice", "house1")
 
     player = client.get(f"/room/{code}").get_json()["players"][0]
-    assert set(player) == {"name", "emoji", "isHost", "connected"}
+    assert set(player) == {"name", "emoji", "isHost", "connected",
+                           "volunteer"}
 
 
 def test_emoji_is_returned_as_a_character_not_an_escape(client):
@@ -126,3 +128,95 @@ def test_send_empty_chat(client):
     code = create(client)
     assert client.post("/send_chat",
                        json={"code": code, "name": "Alice", "message": "   "}).status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Volunteering to be the seeker
+# ---------------------------------------------------------------------------
+
+def test_volunteering_is_reflected_in_the_room(client):
+    code = create(client)
+    assert client.post("/volunteer",
+                       json={"code": code, "name": "Alice",
+                             "volunteer": True}).get_json()["success"]
+
+    assert client.get(f"/room/{code}").get_json()["players"][0]["volunteer"]
+
+
+def test_a_hand_can_come_back_down(client):
+    code = create(client)
+    client.post("/volunteer", json={"code": code, "name": "Alice",
+                                    "volunteer": True})
+    client.post("/volunteer", json={"code": code, "name": "Alice",
+                                    "volunteer": False})
+
+    assert not client.get(f"/room/{code}").get_json()["players"][0]["volunteer"]
+
+
+def test_you_cannot_volunteer_into_a_room_you_are_not_in(client):
+    code = create(client)
+    response = client.post("/volunteer", json={"code": code, "name": "Mallory",
+                                               "volunteer": True})
+    assert response.status_code == 400
+
+
+def test_volunteering_in_a_room_that_is_gone(client):
+    response = client.post("/volunteer", json={"code": "0000", "name": "Alice",
+                                               "volunteer": True})
+    assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# The host removing somebody
+# ---------------------------------------------------------------------------
+
+def test_the_host_can_remove_a_player(client):
+    code = create(client)
+    client.post("/join_room", json={"code": code, "name": "Bob"})
+
+    response = client.post("/kick", json={"code": code, "name": "Alice",
+                                          "target": "Bob"})
+    assert response.get_json()["success"]
+
+    names = [p["name"] for p in client.get(f"/room/{code}").get_json()["players"]]
+    assert names == ["Alice"]
+
+
+def test_only_the_host_can_remove_anybody(client):
+    """The × is only rendered on the host's screen, which is not the same
+    as it only working there."""
+    code = create(client)
+    client.post("/join_room", json={"code": code, "name": "Bob"})
+    client.post("/join_room", json={"code": code, "name": "Carol"})
+
+    response = client.post("/kick", json={"code": code, "name": "Bob",
+                                          "target": "Carol"})
+    assert response.status_code == 403
+
+    names = [p["name"] for p in client.get(f"/room/{code}").get_json()["players"]]
+    assert "Carol" in names
+
+
+def test_the_host_cannot_remove_themselves(client):
+    """Leaving is what the Leave button is for; doing it here would hand
+    the room to somebody by accident."""
+    code = create(client)
+    client.post("/join_room", json={"code": code, "name": "Bob"})
+
+    response = client.post("/kick", json={"code": code, "name": "Alice",
+                                          "target": "Alice"})
+    assert response.status_code == 400
+    assert rooms.is_host(code, "Alice")
+
+
+def test_removing_somebody_who_is_not_there(client):
+    code = create(client)
+    response = client.post("/kick", json={"code": code, "name": "Alice",
+                                          "target": "Nobody"})
+    assert response.status_code == 400
+
+
+def test_removing_from_a_room_that_is_gone(client):
+    response = client.post("/kick", json={"code": "0000", "name": "Alice",
+                                          "target": "Bob"})
+    assert response.status_code == 404
