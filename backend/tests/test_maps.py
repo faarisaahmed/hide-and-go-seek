@@ -332,3 +332,71 @@ def test_the_base_and_hiding_spot_tests_agree_with_the_server_helpers():
     assert maps.hiding_spot_at(
         config.DEFAULT_MAP, spot["x"] + spot["w"] / 2, spot["y"] + spot["h"] / 2,
     ) is spot
+
+
+# ---------------------------------------------------------------------------
+# Line of sight
+# ---------------------------------------------------------------------------
+#
+# Walls stop sight, doorways do not. The geometry is shared with the
+# renderer, which casts the same shadows, so a bug here shows up as
+# people visible inside a shadow rather than as a crash.
+
+def test_a_wall_blocks_a_sight_line():
+    """Straight across the living room / kitchen wall, above the door."""
+    assert maps.blocks_sight("house1", 300, 200, 800, 200)
+
+
+def test_a_doorway_does_not():
+    """Same two rooms, level with the gap between the two wall pieces."""
+    assert not maps.blocks_sight("house1", 300, 360, 800, 360)
+
+
+def test_an_empty_room_is_clear_end_to_end():
+    assert not maps.blocks_sight("house1", 100, 100, 600, 700)
+
+
+def test_a_line_running_along_a_wall_face_is_not_blocked():
+    """Players walk with their backs to walls all the time, and a sight
+    line grazing one must not read as passing through it."""
+    wall = next(w for w in maps.load("house1")["walls"]
+                if w["x"] == 640 and w["y"] == 48)
+    face = wall["x"] + wall["w"]
+
+    assert not maps.blocks_sight("house1", face, 100, face, 260)
+
+
+def test_every_wall_is_a_sight_blocker():
+    """The renderer casts shadows from the same list, so a wall missing
+    from one and present in the other would be a hole you can see through
+    but not walk through."""
+    walls = maps.load("house1")["walls"]
+    assert len(maps.sight_blockers("house1")) == len(walls)
+
+
+def test_a_hiding_spot_can_always_be_seen_from_somewhere_in_its_room():
+    """A spot with no sight line to any of the room's floor would be one
+    the seeker can never find you in, however long they search."""
+    game_map = maps.load("house1")
+
+    for spot in maps.hiding_spots("house1"):
+        cx = spot["x"] + spot["w"] / 2
+        cy = spot["y"] + spot["h"] / 2
+
+        room = next(
+            (r for r in game_map["rooms"]
+             if r["x"] <= cx <= r["x"] + r["w"]
+             and r["y"] <= cy <= r["y"] + r["h"]),
+            None,
+        )
+        assert room, f"{spot['label']} is not in any room"
+
+        corners = [
+            (room["x"] + 60, room["y"] + 60),
+            (room["x"] + room["w"] - 60, room["y"] + 60),
+            (room["x"] + 60, room["y"] + room["h"] - 60),
+            (room["x"] + room["w"] - 60, room["y"] + room["h"] - 60),
+        ]
+        assert any(not maps.blocks_sight("house1", x, y, cx, cy)
+                   for x, y in corners), \
+            f"{spot['label']} cannot be seen from anywhere in {room['name']}"

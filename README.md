@@ -99,12 +99,29 @@ makes you invisible to the seeker until they walk within `SEARCH_DISTANCE`
 and search it. Your own team can always see you, which is what makes
 rescues possible.
 
+### And so do walls
+
+Sight stops at a wall. From the study you used to be able to watch the
+seeker cross the kitchen, which made the rooms decoration and distance
+the only real hiding place; now you see what is in front of you and
+nothing through the plaster, and a doorway is worth standing back from.
+Only walls block — you can see over a sofa, and furniture that blocked
+the view would make the hiding spots pointless.
+
+The renderer casts a shadow from every wall in reach and lays it over
+the darkness, so the rooms you cannot see into look like rooms you
+cannot see into. That drawing is not what enforces the rule: it is
+`maps.blocks_sight` on the server, checked in `game.can_see` for every
+pair, and the shadows exist to make the answer legible.
+
 Beyond the mode's sight radius nobody is drawn at all — and in Blackout,
-outside the seeker's torch either. That filter lives on the **server**
-(`game.can_see`), not the client: positions the seeker is not entitled to
-are never sent, so there is nothing for a modified client to draw.
-Everything else that decides the round — tags, thaws, reaching home, who
-won — is decided server-side too.
+outside the seeker's torch either, which is carved out of the darkness
+rather than painted over it so a beam stops at a wall like everything
+else. That filter lives on the **server** (`game.can_see`), not the
+client: positions the seeker is not entitled to are never sent, so there
+is nothing for a modified client to draw. Everything else that decides
+the round — tags, thaws, standing on home, who won — is decided
+server-side too.
 
 The client is told the active mode's numbers along with the round, so the
 darkness it paints and the torch it draws are the same shape as the

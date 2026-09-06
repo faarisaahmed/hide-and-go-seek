@@ -316,9 +316,16 @@ def can_stand(room, player, x, y):
 def can_see(room, viewer, target):
     """Should ``viewer`` be sent ``target``'s position?
 
-    The filter lives on the server so that hiding actually hides. Three
-    things can conceal somebody: distance, the seeker's shut eyes during
-    the count, and a hiding spot that has not been searched yet.
+    The filter lives on the server so that hiding actually hides. Four
+    things can conceal somebody: distance, a wall, the seeker's shut eyes
+    during the count, and a hiding spot that has not been searched yet.
+
+    The wall is the one that makes the house a house. Sight used to reach
+    straight through the building, so standing in the study you could
+    watch the seeker cross the kitchen — the rooms were decoration and
+    the only real hiding place was distance. Now you see what is in front
+    of you and nothing through the plaster, and a doorway is worth
+    something.
     """
     if viewer is target:
         return True
@@ -342,6 +349,13 @@ def can_see(room, viewer, target):
         if not _in_torchlight(viewer, target, rules):
             return False
     elif distance > rules["vision_radius"]:
+        return False
+
+    # Nothing is seen through a wall, by anybody, in any mode. Applied
+    # after the cheap distance test, since most pairs never get here.
+    vx, vy = _center(viewer)
+    tx, ty = _center(target)
+    if maps.blocks_sight(game["map"], vx, vy, tx, ty):
         return False
 
     # Team-mates can see each other hiding, which is what makes rescues

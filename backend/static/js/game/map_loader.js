@@ -46,6 +46,13 @@ function prepare(map) {
     // What the player is actually stopped by.
     map.obstacles = [...map.walls, ...map.solidFurniture];
 
+    // What stops *sight*, which is a shorter list: you can see over a
+    // sofa, and furniture that blocked the view would make the hiding
+    // spots pointless. Named separately from the walls because the
+    // server draws the same distinction (maps.sight_blockers), and the
+    // shadows drawn here have to match the filter applied there.
+    map.sightBlockers = map.walls;
+
     const base = map.base_zones[0];
     map.baseCenter = base
         ? { x: base.x + base.w / 2, y: base.y + base.h / 2 }
