@@ -21,7 +21,7 @@ The phases, in order:
 ``gathering``  everyone pinned to the base while the last clients load
 ``counting``   the seeker is blind and rooted; the hiders scatter
 ``hunting``    open season
-``over``       somebody won; the host can start another round
+``over``       somebody won; anybody can deal again
 """
 
 import math
