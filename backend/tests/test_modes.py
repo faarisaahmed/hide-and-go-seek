@@ -159,6 +159,22 @@ def test_the_lobby_offers_every_mode_and_no_others(client):
         assert modes.MODES[mode_id]["name"] in html
 
 
+def _hud_table(name):
+    """The mode ids listed in one of hud.js's copy tables."""
+    import os
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(here, "static", "js", "game", "hud.js"),
+              encoding="utf-8") as handle:
+        source = handle.read()
+
+    block = re.search(rf"const {name} = \{{(.*?)\n\}};", source, re.S)
+    assert block, f"hud.js no longer has a {name} table"
+
+    # Top-level keys only: what is nested inside is indented further.
+    return re.findall(r"^\n?    ([a-z_]+): \{", block.group(1), re.M)
+
+
 def test_the_hud_has_something_to_say_about_every_mode():
     """A mode with no copy would quietly tell people the classic thing.
 
@@ -167,21 +183,25 @@ def test_the_hud_has_something_to_say_about_every_mode():
     missing entry would never show up as a crash — it would just tell a
     seeker in the wrong mode to freeze people who cannot be frozen.
     """
-    import os
-
-    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(here, "static", "js", "game", "hud.js"),
-              encoding="utf-8") as handle:
-        source = handle.read()
-
-    block = re.search(r"const OBJECTIVES = \{(.*?)\n\};", source, re.S)
-    assert block, "hud.js no longer has an OBJECTIVES table"
-
-    # Top-level keys only: the phases nested inside are indented further.
-    listed = re.findall(r"^\n?    ([a-z_]+): \{", block.group(1), re.M)
+    listed = _hud_table("OBJECTIVES")
 
     assert sorted(listed) == sorted(modes.ORDER), (
         f"hud.js knows about {sorted(listed)}, "
+        f"the server has {sorted(modes.ORDER)}"
+    )
+
+
+def test_every_mode_explains_both_of_its_roles():
+    """The role card is the one place the game says what you *are*.
+
+    Falling back to the classic wording would be actively wrong in half
+    the modes — telling a Sardines player that everybody else is hiding,
+    when in fact they are the only one who is.
+    """
+    listed = _hud_table("ROLES")
+
+    assert sorted(listed) == sorted(modes.ORDER), (
+        f"hud.js explains roles for {sorted(listed)}, "
         f"the server has {sorted(modes.ORDER)}"
     )
 

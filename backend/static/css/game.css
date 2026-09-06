@@ -221,6 +221,63 @@ canvas {
     color: var(--text-dim);
 }
 
+/* ===== Role card =====
+   Below the count, which is the one stretch of the round where there is
+   nothing else to read. Goes when the hunt starts: by then the objective
+   line says something more useful, and a paragraph of text over a house
+   you are running through is the last thing anybody wants. */
+
+.role-card {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    /* Below the count, and clamped so a short landscape phone does not
+       push it off the bottom of the screen. */
+    top: min(66%, calc(100% - 230px));
+    z-index: 16;
+
+    width: min(88vw, 420px);
+    padding: 16px 20px;
+
+    text-align: center;
+
+    background: rgba(5, 11, 26, 0.82);
+    border: 1px solid rgba(111, 184, 255, 0.45);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(8px);
+
+    pointer-events: none;
+}
+
+.role-card__title {
+    margin: 0 0 6px;
+
+    font-family: var(--font);
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+}
+
+.role-card__blurb {
+    margin: 0;
+
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-dim);
+}
+
+/* The seeker's card in the seeker's colour, so the two sides do not read
+   as the same announcement with different words in it. */
+.role-card.is-seeker {
+    border-color: rgba(255, 107, 129, 0.5);
+}
+
+.role-card.is-seeker .role-card__title {
+    color: var(--danger);
+}
+
 /* ===== Objective line ===== */
 
 .objective {

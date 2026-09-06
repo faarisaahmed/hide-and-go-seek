@@ -260,7 +260,13 @@ look up existing in the page they run on.
    touch devices. The keys stay on screen for the whole round and the
    thumb pads say what they do, because a control nobody finds is not a
    mechanic. The HUD tells you your role, what you should be doing about
-   it, and how the round stands.
+   it, and how the round stands. While the room gathers and the count
+   runs, a card in the middle of the screen says which side you are on
+   and what that actually means — people were reading "run and hide"
+   without working out that everybody else was hiding too, or that the
+   person counting was coming for them in particular. It goes when the
+   hunt starts; the role chip in the corner carries the same words as a
+   tooltip after that.
    When it ends, anybody can start another from the results card — the
    first round is the host's to call, a rematch is not.
 

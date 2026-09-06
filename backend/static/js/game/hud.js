@@ -30,6 +30,10 @@ const els = {
 
     objective: document.getElementById("objective"),
     shout: document.getElementById("shoutNote"),
+
+    roleCard: document.getElementById("roleCard"),
+    roleCardTitle: document.getElementById("roleCardTitle"),
+    roleCardBlurb: document.getElementById("roleCardBlurb"),
     hidingNote: document.getElementById("hidingNote"),
     stamina: document.getElementById("stamina"),
     staminaFill: document.getElementById("staminaFill"),
@@ -137,6 +141,96 @@ const OBJECTIVES = {
     },
 };
 
+/* ===== Which side you are on =====
+ *
+ * The objective line above says what to *do* this second. This says what
+ * you *are* for the whole round, and it is a separate thing because
+ * people were reading "Run! Get well clear of the base" without ever
+ * working out that everybody else was hiding too, or that the person
+ * counting was going to come looking for them specifically.
+ *
+ * Shown big while the round is gathering and counting, which is the one
+ * stretch where there is nothing else to read. Same shape as OBJECTIVES:
+ * a mode writes down only the lines it changes, and test_modes.py checks
+ * neither table has grown a mode the other has never heard of.
+ */
+
+const ROLES = {
+    classic: {
+        tagger: {
+            title: "You are the SEEKER",
+            blurb: "Everybody else is hiding. Count, then find them and "
+                   + "touch them — a tagged player freezes where they stand. "
+                   + "You cannot stand on the base.",
+        },
+        hider: {
+            title: "You are HIDING",
+            blurb: "One player is looking for all of you. Tuck into "
+                   + "furniture to vanish, free frozen friends by running "
+                   + "into them, and win by getting everybody onto the base "
+                   + "at once.",
+        },
+    },
+
+    infection: {
+        tagger: {
+            title: "You are the SEEKER",
+            blurb: "Everybody you touch joins your side, so the house fills "
+                   + "up with seekers. Nobody freezes; they change teams.",
+        },
+        hider: {
+            title: "You are HIDING",
+            blurb: "Get tagged and you become a seeker hunting the people "
+                   + "you were hiding with. Get to the base instead.",
+        },
+    },
+
+    juggernaut: {
+        tagger: {
+            title: "You are the SEEKER",
+            blurb: "No furniture hides anybody and nobody gets thawed. It is "
+                   + "a chase, and the clock is short.",
+        },
+        hider: {
+            title: "You are RUNNING",
+            blurb: "Nowhere to hide in this one — the wardrobe will not save "
+                   + "you. Straight for the base, and a tag is final.",
+        },
+    },
+
+    blackout: {
+        tagger: {
+            title: "You are the SEEKER",
+            blurb: "The lights are out. You carry a torch that points where "
+                   + "you last moved: it reaches further than anyone can see, "
+                   + "and it can be walked around behind.",
+        },
+        hider: {
+            title: "You are HIDING",
+            blurb: "It is pitch dark and you can see about a room's worth. "
+                   + "The seeker has a torch — stay out of the beam, and get "
+                   + "everybody home.",
+        },
+    },
+
+    // Backwards: the lone player is the one hiding, and everybody else is
+    // a "tagger" as far as the round is concerned.
+    sardines: {
+        tagger: {
+            title: "You are LOOKING",
+            blurb: "One person is hiding and the whole room is after them. "
+                   + "Find them and you squeeze in beside them. Last one "
+                   + "still looking loses.",
+        },
+        hider: {
+            title: "You are the ONE HIDING",
+            blurb: "Everybody else is counting, and then all of them come "
+                   + "looking for you. Find somewhere good — they pile in "
+                   + "beside you as they work it out.",
+        },
+    },
+};
+
 /* A line for this mode, or the classic one it did not bother to change. */
 function line(mode, phase, key) {
     return OBJECTIVES[mode]?.[phase]?.[key]
@@ -165,6 +259,31 @@ function objectiveFor(round, me) {
             return "";
     }
 }
+
+function roleFor(mode, role) {
+    const key = role === "tagger" ? "tagger" : "hider";
+    return ROLES[mode]?.[key] ?? ROLES.classic[key];
+}
+
+/*
+ * The big "here is what you are" card, up while the room gathers and the
+ * count runs. It goes away when the hunt starts: by then the objective
+ * line is saying something more useful, and a paragraph of text is the
+ * last thing you want over a house you are trying to run through.
+ */
+function drawRoleCard(round, me) {
+    const showing = (round.phase === "gathering" || round.phase === "counting")
+        && Boolean(me?.role);
+
+    setHidden(els.roleCard, !showing);
+    if (!showing) return;
+
+    const role = roleFor(round.mode, me.role);
+    setText(els.roleCardTitle, role.title);
+    setText(els.roleCardBlurb, role.blurb);
+    setClass(els.roleCard, "is-seeker", me.role === "tagger");
+}
+
 
 function outcomeTitle(round) {
     // Everybody ends up hidden in Sardines, so "hiders win" is true but
@@ -209,6 +328,15 @@ function drawRoleChip(round, me) {
     else if (me?.state === "safe") badge = "HOME";
 
     setText(els.roleBadge, badge);
+
+    // The card explaining the role is only up during the count, so the
+    // chip carries the same words for the rest of the round.
+    if (role && shown.roleTitle !== role) {
+        shown.roleTitle = role;
+        const explains = roleFor(round.mode, role);
+        els.role.title = `${explains.title}. ${explains.blurb}`;
+    }
+
     setClass(els.role, "is-seeker", role === "tagger");
     setClass(els.role, "is-frozen", me?.state === "frozen");
     setClass(els.role, "is-safe", me?.state === "safe");
@@ -445,6 +573,7 @@ export function drawHud({ map, localPlayer, myName }) {
     drawMode(round);
     drawClock(round);
     drawCountdown(round, me);
+    drawRoleCard(round, me);
     drawHidingNote(map, localPlayer, round, me);
     drawShout();
     drawStamina();
