@@ -93,6 +93,12 @@ export const RESCUE_DISTANCE = 60;
  * real hiding spot, so the ring is drawn as a warning while counting. */
 export const NO_HIDE_RADIUS = 400;
 
+/* How long the seeker may stay in the room the base is in before the
+ * house moves them somewhere else at random. The server owns the real
+ * clock; this copy is so the HUD can count it down in front of them
+ * rather than teleporting them out of a clear blue sky. */
+export const SEEKER_CAMP_SECONDS = 5;
+
 /* ===== Colours ===== */
 
 /* A night-time blue house: cool blues for the building, cyan for
@@ -198,6 +204,11 @@ export const CULL_MARGIN = 64;
  * carries, and the cooldown — are its business, since it is the one
  * deciding who hears what. */
 export const SHOUT_FADE_SECONDS = 2.4;
+
+/* How long an explanation of being moved stays on screen. Long enough to
+ * read twice, since the first read is usually spent working out that you
+ * are somewhere else. */
+export const RELOCATION_FADE_SECONDS = 4;
 
 /* ===== Minimap =====
  *

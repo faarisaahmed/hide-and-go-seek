@@ -153,7 +153,7 @@ def test_the_client_and_server_agree_on_the_round_numbers():
     source = read("js", "game", "config.js")
 
     for name in ["PLAYER_SIZE", "VISION_RADIUS", "SEARCH_DISTANCE",
-                 "RESCUE_DISTANCE", "NO_HIDE_RADIUS"]:
+                 "RESCUE_DISTANCE", "NO_HIDE_RADIUS", "SEEKER_CAMP_SECONDS"]:
         assert js_constant(source, name) == float(getattr(config, name)), name
 
 

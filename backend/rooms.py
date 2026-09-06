@@ -174,6 +174,10 @@ def _new_player(room, name, is_host):
         # Set briefly after the server moves them, so their own stale
         # position updates cannot put them back. See game._clear_the_base.
         "pinned_until": None,
+        # When a seeker walked into the room the base is in, or None.
+        # Loitering there is how a round becomes a staring contest, so it
+        # is on a clock. See game._evict_campers.
+        "camping_since": None,
         # When they last made a noise, so the shout button has a cooldown
         # on it and holding the key down is not a siren. Kept per player
         # rather than per socket, or reconnecting would reset it.

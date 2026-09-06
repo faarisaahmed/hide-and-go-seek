@@ -113,8 +113,14 @@ def _publish(code, changes=("players",)):
     """Push the round state to a room, resyncing sight lines if needed."""
     # Corrections first: sight lines depend on where people actually are.
     if "moved" in changes:
-        for player in game.take_relocated(code):
-            _correct(player)
+        room = rooms.get(code)
+        for player, reason in game.take_relocated(code):
+            _correct(player, reason)
+            # And everyone else, or a player the round teleported goes on
+            # being drawn where they used to be until their own client
+            # gets round to reporting in.
+            if room is not None and player["sid"] is not None:
+                _relay_position(room, code, player)
 
     # A phase change opens eyes that were shut; so does a player changing
     # sides, which is what a tag does in Infection. Either way every pair
@@ -128,13 +134,18 @@ def _publish(code, changes=("players",)):
         socketio.emit("game_state", state, to=code)
 
 
-def _correct(player):
-    """Tell one client where the server says it is."""
+def _correct(player, reason=None):
+    """Tell one client where the server says it is, and why if there is one.
+
+    A silent teleport reads as a bug. The reason is what lets the client
+    say "you were camping the base" rather than leaving somebody to work
+    out for themselves why they are suddenly in the cellar.
+    """
     if player["sid"] is None:
         return
 
     socketio.emit("position_correction",
-                  {"x": player["x"], "y": player["y"]},
+                  {"x": player["x"], "y": player["y"], "reason": reason},
                   to=player["sid"])
 
 
