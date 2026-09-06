@@ -142,13 +142,24 @@ export const COLORS = {
     nameTag: "#dce6fa",
     roomLabel: "rgba(150, 178, 224, 0.5)",
 
-    /* Beyond the vision radius the house is still drawn, just dimmed —
-     * you can find your way around a dark room, you just cannot see who
-     * is standing in it. */
-    darkness: "rgba(3, 6, 14, 0.82)",
     /* The seeker's own screen while they count. */
     blindfold: "rgba(3, 6, 14, 0.97)",
 };
+
+/* ===== Darkness =====
+ *
+ * Beyond the vision radius, and behind every wall, the house is still
+ * drawn — just dimmed. You can find your way around a dark room; you
+ * just cannot see who is standing in it.
+ *
+ * The mask is built at full strength on an offscreen canvas and
+ * composited at this alpha, so overlapping shadows cannot stack into
+ * black patches. Deliberately heavier than the flat dimming it replaced:
+ * the point of a wall is that the next room is *gone*, not slightly
+ * murky.
+ */
+export const SHADOW_INK = "#03060e";
+export const DARKNESS_ALPHA = 0.9;
 
 export const NAME_TAG_FONT = "bold 13px Arial";
 export const ROOM_LABEL_FONT = "bold 15px Arial";

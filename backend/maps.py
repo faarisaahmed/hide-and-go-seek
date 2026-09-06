@@ -59,6 +59,78 @@ def _rects(name, key):
     return (load(name) or {}).get(key) or []
 
 
+# ---------------------------------------------------------------------------
+# Line of sight
+# ---------------------------------------------------------------------------
+#
+# Walls stop sight. Only walls: you can see over a sofa, and furniture
+# that concealed people would make the hiding-spot rule meaningless. The
+# doorways are already holes in the wall rectangles rather than objects
+# of their own, so seeing through a door falls out of the geometry
+# instead of needing a rule.
+
+_blockers = {}
+
+
+def sight_blockers(name):
+    """Walls as ``(x0, y0, x1, y1)``, worked out once per map."""
+    if name not in _blockers:
+        _blockers[name] = [
+            (w["x"], w["y"], w["x"] + w["w"], w["y"] + w["h"])
+            for w in _rects(name, "walls")
+        ]
+    return _blockers[name]
+
+
+def _crosses(ax, ay, dx, dy, x0, y0, x1, y1):
+    """Does the segment from (ax, ay) along (dx, dy) enter this rectangle?
+
+    The slab method: clip the segment's parameter range against each axis
+    in turn and see whether anything is left. Comparisons are strict, so
+    a line that runs exactly along a wall's face — which is what a player
+    hugging one gives you — grazes rather than blocks.
+    """
+    near, far = 0.0, 1.0
+
+    for start, delta, low, high in ((ax, dx, x0, x1), (ay, dy, y0, y1)):
+        if delta == 0:
+            if start <= low or start >= high:
+                return False
+            continue
+
+        first = (low - start) / delta
+        last = (high - start) / delta
+        if first > last:
+            first, last = last, first
+
+        near = max(near, first)
+        far = min(far, last)
+        if near >= far:
+            return False
+
+    return True
+
+
+def blocks_sight(name, ax, ay, bx, by):
+    """Is there a wall between these two points?
+
+    Called for every pair of players who are otherwise in range, so the
+    bounding-box reject earns its keep: most of a house's walls are
+    nowhere near any given sight line.
+    """
+    dx, dy = bx - ax, by - ay
+    lo_x, hi_x = (ax, bx) if ax <= bx else (bx, ax)
+    lo_y, hi_y = (ay, by) if ay <= by else (by, ay)
+
+    for x0, y0, x1, y1 in sight_blockers(name):
+        if hi_x <= x0 or lo_x >= x1 or hi_y <= y0 or lo_y >= y1:
+            continue
+        if _crosses(ax, ay, dx, dy, x0, y0, x1, y1):
+            return True
+
+    return False
+
+
 def base_zones(name):
     """The safe rectangles. Reaching one is how a hider gets home."""
     return _rects(name, "base_zones")

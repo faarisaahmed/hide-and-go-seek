@@ -14,6 +14,7 @@
 import {
     COLORS,
     CULL_MARGIN,
+    DARKNESS_ALPHA,
     EMOJI_FONT,
     FURNITURE_FONT_MAX,
     FURNITURE_FONT_MIN,
@@ -26,6 +27,7 @@ import {
     RESCUE_DISTANCE,
     ROOM_LABEL_FONT,
     SEARCH_DISTANCE,
+    SHADOW_INK,
     TILE_SIZE,
 } from "./config.js";
 import { hideSpotAt } from "./map_loader.js";
@@ -50,6 +52,14 @@ function pathRect(ctx, x, y, w, h, radius) {
 export function createRenderer(canvas) {
     const ctx = canvas.getContext("2d");
     const camera = { x: 0, y: 0 };
+
+    // Where the darkness is assembled before being laid over the frame.
+    // Kept at CSS-pixel size rather than device pixels: it is a mask of
+    // large flat shapes, so a retina backing store would quadruple the
+    // fill for an edge nobody can see the softness of.
+    const shadow = {};
+    shadow.canvas = document.createElement("canvas");
+    shadow.ctx = shadow.canvas.getContext("2d");
 
     // Viewport in CSS pixels. The backing store is larger on a retina
     // screen, but everything we draw is in CSS pixels.
@@ -513,13 +523,111 @@ export function createRenderer(canvas) {
 
     /* ===== Darkness ===== */
 
-    /*
-     * The house stays visible past the vision radius but the people in
-     * it do not, because the server never sent them. Dimming rather than
-     * blacking out means you can still find your way to the kitchen in
-     * the dark, which is the bit that feels like hide and seek.
+    /* ===== Darkness, and the shadows walls throw into it =====
+     *
+     * Built up on an offscreen canvas rather than painted straight onto
+     * the frame, because it is made by *subtraction*: start with the
+     * whole viewport dark, rub out what the player can see, then put the
+     * dark back wherever a wall is in the way. Doing that in place would
+     * mean overlapping shadows stacking into black patches, and a torch
+     * beam that shone through the kitchen wall.
+     *
+     * The shadows are not decoration. game.can_see refuses to send a
+     * player's position through a wall, so a room you cannot see into is
+     * a room the server is keeping from you — the drawing is there to
+     * make that legible rather than to enforce it.
      */
-    function drawDarkness(round, you) {
+
+    function shadowSize() {
+        if (shadow.canvas.width !== viewWidth || shadow.canvas.height !== viewHeight) {
+            shadow.canvas.width = viewWidth;
+            shadow.canvas.height = viewHeight;
+        }
+    }
+
+    /*
+     * The shadow a single wall throws, as one quad per edge facing away
+     * from the player.
+     *
+     * Away, not towards: the quads then start at the wall's far side and
+     * the wall itself stays lit, which is what you want when the wall is
+     * also the thing you are navigating by. For a rectangle the union of
+     * those quads is exactly the region behind it, so overlapping them
+     * costs nothing but fill.
+     */
+    function castShadow(s, wall, lx, ly, far) {
+        const x0 = screenX(wall.x);
+        const y0 = screenY(wall.y);
+        const x1 = x0 + wall.w;
+        const y1 = y0 + wall.h;
+
+        // Clockwise, which fixes the sign of the outward normal below.
+        const corners = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+
+        for (let i = 0; i < 4; i++) {
+            const [ax, ay] = corners[i];
+            const [bx, by] = corners[(i + 1) % 4];
+
+            // Outward normal of a clockwise edge, with y pointing down.
+            const nx = by - ay;
+            const ny = ax - bx;
+            if (nx * (lx - ax) + ny * (ly - ay) >= 0) continue;  // lit face
+
+            const dax = ax - lx;
+            const day = ay - ly;
+            const dbx = bx - lx;
+            const dby = by - ly;
+            const la = Math.hypot(dax, day) || 1;
+            const lb = Math.hypot(dbx, dby) || 1;
+
+            s.beginPath();
+            s.moveTo(ax, ay);
+            s.lineTo(bx, by);
+            s.lineTo(bx + (dbx / lb) * far, by + (dby / lb) * far);
+            s.lineTo(ax + (dax / la) * far, ay + (day / la) * far);
+            s.closePath();
+            s.fill();
+        }
+    }
+
+    /* Is any part of this wall inside the lit circle? Walls beyond it
+     * only ever shadow floor that is already dark. */
+    function withinReach(wall, lx, ly, reach) {
+        const x0 = screenX(wall.x);
+        const y0 = screenY(wall.y);
+        const nearestX = Math.max(x0, Math.min(lx, x0 + wall.w));
+        const nearestY = Math.max(y0, Math.min(ly, y0 + wall.h));
+
+        return Math.hypot(lx - nearestX, ly - nearestY) <= reach;
+    }
+
+    /*
+     * The seeker's torch, in the modes that give them one.
+     *
+     * A wedge rubbed out of the darkness, not a light laid over it — so
+     * it stops at walls along with everything else. The angle is only
+     * ever the direction the player last moved, which is what makes a
+     * torch something you can be walked around behind.
+     */
+    function carveTorch(s, round, you, cx, cy) {
+        const reach = round.rules.coneReach;
+        const half = (round.rules.coneDegrees * Math.PI / 180) / 2;
+
+        const gradient = s.createRadialGradient(cx, cy, 0, cx, cy, reach);
+        gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+        gradient.addColorStop(0.7, "rgba(0, 0, 0, 0.92)");
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+        s.beginPath();
+        s.moveTo(cx, cy);
+        s.arc(cx, cy, reach, you.facing - half, you.facing + half);
+        s.closePath();
+
+        s.fillStyle = gradient;
+        s.fill();
+    }
+
+    function drawDarkness(map, round, you) {
         const cx = screenX(you.x + you.size / 2);
         const cy = screenY(you.y + you.size / 2);
 
@@ -527,48 +635,43 @@ export function createRenderer(canvas) {
         // people at this distance, so drawing a wider circle of light
         // would just be a ring of floor nobody is ever in.
         const reach = round.rules.visionRadius;
+        const torch = round.rules.coneDegrees !== null
+            && you.role === "tagger"
+            && round.phase === "hunting";
+        const lit = torch ? Math.max(reach, round.rules.coneReach) : reach;
 
-        const gradient = ctx.createRadialGradient(
-            cx, cy, reach * 0.5, cx, cy, reach,
-        );
-        gradient.addColorStop(0, "rgba(3, 6, 14, 0)");
-        gradient.addColorStop(1, COLORS.darkness);
+        shadowSize();
+        const s = shadow.ctx;
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, viewWidth, viewHeight);
-    }
+        s.globalCompositeOperation = "source-over";
+        s.fillStyle = SHADOW_INK;
+        s.clearRect(0, 0, viewWidth, viewHeight);
+        s.fillRect(0, 0, viewWidth, viewHeight);
 
-    /*
-     * The seeker's torch, in the modes that give them one.
-     *
-     * Drawn as a wedge of light laid over the darkness rather than as a
-     * hole cut in it, so the house is still faintly readable outside the
-     * beam — being unable to find the kitchen is tedious, being unable to
-     * find the people in it is the game.
-     *
-     * The angle is only ever the direction the player last moved, which
-     * is what makes a torch something you can be walked around behind.
-     */
-    function drawTorch(round, you) {
-        const cx = screenX(you.x + you.size / 2);
-        const cy = screenY(you.y + you.size / 2);
+        // Rub out what is in sight. Soft at the edge, so the lit circle
+        // fades rather than ending in a hard rim.
+        s.globalCompositeOperation = "destination-out";
 
-        const reach = round.rules.coneReach;
-        const half = (round.rules.coneDegrees * Math.PI / 180) / 2;
+        const glow = s.createRadialGradient(cx, cy, reach * 0.45, cx, cy, reach);
+        glow.addColorStop(0, "rgba(0, 0, 0, 1)");
+        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        s.fillStyle = glow;
+        s.fillRect(0, 0, viewWidth, viewHeight);
 
-        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, reach);
-        gradient.addColorStop(0, "rgba(226, 240, 255, 0.17)");
-        gradient.addColorStop(0.55, "rgba(190, 220, 255, 0.09)");
-        gradient.addColorStop(1, "rgba(160, 200, 255, 0)");
+        if (torch) carveTorch(s, round, you, cx, cy);
+
+        // And put it back wherever a wall is in the way.
+        s.globalCompositeOperation = "source-over";
+        s.fillStyle = SHADOW_INK;
+        for (const wall of map.sightBlockers) {
+            if (!onScreen(wall)) continue;
+            if (!withinReach(wall, cx, cy, lit)) continue;
+            castShadow(s, wall, cx, cy, lit * 2.2);
+        }
 
         ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, reach, you.facing - half, you.facing + half);
-        ctx.closePath();
-
-        ctx.fillStyle = gradient;
-        ctx.fill();
+        ctx.globalAlpha = DARKNESS_ALPHA;
+        ctx.drawImage(shadow.canvas, 0, 0, viewWidth, viewHeight);
         ctx.restore();
     }
 
@@ -671,15 +774,9 @@ export function createRenderer(canvas) {
         if (round.phase === "counting" && localPlayer.role === "tagger") {
             drawBlindfold();
         } else if (round.phase === "counting" || round.phase === "hunting") {
-            drawDarkness(round, localPlayer);
-
-            // Over the darkness, not under it: the beam has to lighten
-            // the dark rather than be dimmed by it.
-            if (round.rules.coneDegrees !== null
-                && localPlayer.role === "tagger"
-                && round.phase === "hunting") {
-                drawTorch(round, localPlayer);
-            }
+            // The torch is carved out of this rather than laid over it,
+            // so a beam stops at a wall like everything else does.
+            drawDarkness(map, round, localPlayer);
         }
 
         drawHomeCompass(map, round, localPlayer);

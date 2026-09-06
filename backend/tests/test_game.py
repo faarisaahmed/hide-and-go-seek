@@ -786,17 +786,55 @@ def test_the_seeker_sees_nothing_while_counting(clock):
     assert game.can_see(room, hiders[0], seeker)
 
 
+# Both ends inside the living room (x 48-640, y 48-726), so this is the
+# distance rule being tested and not the wall rule.
+LOUNGE_X = 300
+
+
 def test_nobody_is_visible_beyond_the_vision_radius(clock):
     code = hunting(clock, "Alice", "Bob")
     room = rooms.get(code)
     seeker, hiders = cast(code)
 
-    put(seeker, 300, 300)
-    put(hiders[0], 300 + config.VISION_RADIUS + 40, 300)
+    put(seeker, LOUNGE_X, 150)
+    put(hiders[0], LOUNGE_X, 150 + config.VISION_RADIUS + 40)
     assert not game.can_see(room, seeker, hiders[0])
 
-    put(hiders[0], 300 + config.VISION_RADIUS - 40, 300)
+    put(hiders[0], LOUNGE_X, 150 + config.VISION_RADIUS - 40)
     assert game.can_see(room, seeker, hiders[0])
+
+
+def test_nobody_is_visible_through_a_wall(clock):
+    """The house used to be see-through: from the study you could watch
+    the seeker cross the kitchen, which made the rooms decoration and
+    distance the only real hiding place."""
+    code = hunting(clock, "Alice", "Bob")
+    room = rooms.get(code)
+    seeker, hiders = cast(code)
+
+    # Either side of the living room / kitchen wall, well within sight.
+    put(seeker, 560, 200)
+    put(hiders[0], 760, 200)
+    assert _distance_between(seeker, hiders[0]) < config.VISION_RADIUS
+    assert not game.can_see(room, seeker, hiders[0])
+
+
+def test_a_doorway_is_a_hole_you_can_see_through(clock):
+    """The pair to the test above, so it is the wall being checked and
+    not simply that patch of the house."""
+    code = hunting(clock, "Alice", "Bob")
+    room = rooms.get(code)
+    seeker, hiders = cast(code)
+
+    # Level with the doorway between the two rooms rather than the wall.
+    put(seeker, 560, 360)
+    put(hiders[0], 760, 360)
+    assert game.can_see(room, seeker, hiders[0])
+
+
+def _distance_between(a, b):
+    half = config.PLAYER_SIZE / 2
+    return ((a["x"] - b["x"]) ** 2 + (a["y"] - b["y"]) ** 2) ** 0.5
 
 
 def test_a_hider_in_the_furniture_is_invisible_until_the_seeker_searches_it(clock):
