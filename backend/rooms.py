@@ -166,9 +166,6 @@ def _new_player(room, name, is_host):
         # "free", "frozen" (tagged, waiting for a rescue) or "safe" (made
         # it home to the base).
         "state": "free",
-        # When a team-mate started thawing them, or None. Drives the
-        # rescue hold.
-        "rescue_since": None,
         # Set briefly after the server moves them, so their own stale
         # position updates cannot put them back. See game._clear_the_base.
         "pinned_until": None,

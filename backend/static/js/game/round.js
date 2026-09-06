@@ -25,6 +25,7 @@ const round = {
         visionRadius: VISION_RADIUS,
         hidingConceals: true,
         homeIsSafety: true,
+        rescues: true,
         coneDegrees: null,
         coneReach: VISION_RADIUS,
     },

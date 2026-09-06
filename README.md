@@ -28,9 +28,9 @@ middle of the house.
    `NO_HIDE_RADIUS` of the base when the count ends is moved out to a
    proper hiding spot — camping the base is not hiding.
 3. The seeker hunts. Touching a hider **freezes** them where they stand.
-4. A hider who is still free can stand with a frozen team-mate for
-   `RESCUE_HOLD_SECONDS` to **thaw** them. Someone who already made it
-   home cannot, so a rescue always costs somebody their safety.
+4. A hider who is still free **thaws** a frozen team-mate by running
+   into them — contact, no waiting. Someone who already made it home
+   cannot, so a rescue always costs somebody their safety.
 5. **Hiders win** by getting every one of themselves back onto the base.
    **The seeker wins** by freezing everyone, or by running out the clock.
    Those three are the *only* ways a round ends: one hider home while the

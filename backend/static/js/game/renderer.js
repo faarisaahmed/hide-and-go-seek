@@ -24,7 +24,6 @@ import {
     PLANK_HEIGHT,
     PLANK_LENGTH,
     RESCUE_DISTANCE,
-    RESCUE_HOLD_SECONDS,
     ROOM_LABEL_FONT,
     SEARCH_DISTANCE,
     TILE_SIZE,
@@ -56,11 +55,6 @@ export function createRenderer(canvas) {
     // screen, but everything we draw is in CSS pixels.
     let viewWidth = 0;
     let viewHeight = 0;
-
-    // When each frozen player first had a rescuer standing next to them,
-    // so the thaw can be drawn filling up. The server keeps the real
-    // clock; this only has to look right.
-    const rescueStartedAt = new Map();
 
     /*
      * Match the canvas to the window *and* the display density. Without
@@ -435,47 +429,30 @@ export function createRenderer(canvas) {
     }
 
     /*
-     * A frozen player with a free hider next to them gets a ring that
-     * fills as the thaw completes. Timed locally, because the exact
-     * clock belongs to the server and this only has to look right.
+     * The circle you have to run into to thaw somebody, drawn round every
+     * frozen player. A rescue is instant on contact, so there is no
+     * progress to show — what there is to show is where "contact" starts,
+     * which is the one thing a player arriving at a frozen team-mate
+     * actually wants to know.
+     *
+     * Pulses, so it reads as something waiting for you rather than as
+     * decoration painted on the floor.
      */
-    function drawRescueProgress(player, record, remotePlayers, localPlayer, now) {
+    function drawRescueRing(player, record, round, size, now) {
         if (!record || record.state !== "frozen") return;
+        if (!round.rules.rescues) return;
 
-        const cx = player.x + localPlayer.size / 2;
-        const cy = player.y + localPlayer.size / 2;
-
-        const candidates = [...Object.values(remotePlayers), localPlayer];
-        const rescuing = candidates.some((other) => {
-            if (other.name === player.name) return false;
-            const theirs = playerNamed(other.name);
-            if (!theirs || theirs.role !== "hider" || theirs.state !== "free") return false;
-
-            const dx = other.x + localPlayer.size / 2 - cx;
-            const dy = other.y + localPlayer.size / 2 - cy;
-            return Math.hypot(dx, dy) <= RESCUE_DISTANCE;
-        });
-
-        if (!rescuing) {
-            rescueStartedAt.delete(player.name);
-            return;
-        }
-
-        if (!rescueStartedAt.has(player.name)) {
-            rescueStartedAt.set(player.name, now);
-        }
-
-        const held = (now - rescueStartedAt.get(player.name)) / 1000;
-        const progress = Math.min(1, held / RESCUE_HOLD_SECONDS);
+        const cx = player.x + size / 2;
+        const cy = player.y + size / 2;
+        const pulse = 0.5 + 0.5 * Math.sin(now / 320);
 
         ctx.save();
         ctx.strokeStyle = COLORS.rescueRing;
-        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.5 + 0.5 * pulse;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([7, 7]);
         ctx.beginPath();
-        ctx.arc(
-            screenX(cx), screenY(cy), localPlayer.size * 0.85,
-            -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2,
-        );
+        ctx.arc(screenX(cx), screenY(cy), RESCUE_DISTANCE, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
     }
@@ -666,16 +643,17 @@ export function createRenderer(canvas) {
         drawSearchRing(round, localPlayer);
 
         for (const remote of Object.values(remotePlayers)) {
-            drawRescueProgress(remote, playerNamed(remote.name),
-                               remotePlayers, localPlayer, now);
+            drawRescueRing(remote, playerNamed(remote.name), round,
+                           localPlayer.size, now);
             // The server sends positions only, so remotes are drawn at the
             // same size as us.
             drawPlayer(remote, localPlayer.size);
         }
 
-        // Your own thaw is the one you most want to watch fill up.
-        drawRescueProgress(localPlayer, playerNamed(localPlayer.name),
-                           remotePlayers, localPlayer, now);
+        // Your own, so a frozen player can see the circle somebody has to
+        // reach rather than only being told to sit tight.
+        drawRescueRing(localPlayer, playerNamed(localPlayer.name), round,
+                       localPlayer.size, now);
 
         // Drawn last so we are never hidden underneath someone else.
         drawPlayer(localPlayer, localPlayer.size, { isYou: true });

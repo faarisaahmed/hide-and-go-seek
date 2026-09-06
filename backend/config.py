@@ -76,11 +76,13 @@ TAG_DISTANCE = 48
 # bolt as they walk up to the wardrobe.
 SEARCH_DISTANCE = 120
 
-# Thawing a frozen team-mate: stand this close for this long. The hold is
-# what makes a rescue a decision rather than an accident, since it leaves
-# the rescuer standing still in the open.
+# Thawing a frozen team-mate: touch them. A rescue used to need the
+# rescuer to stand still beside them for a second and a half, which read
+# as nothing happening — people walked up, waited, wandered off and never
+# worked out that they had almost done it. Running through somebody is
+# legible on its own, and the risk is still real: the run in and back out
+# is across open floor.
 RESCUE_DISTANCE = 60
-RESCUE_HOLD_SECONDS = 1.5
 
 # How far anyone can see. Positions beyond this are never sent to a
 # client, so a dark house cannot be undone by reading the network.

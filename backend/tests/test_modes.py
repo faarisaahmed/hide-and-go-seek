@@ -398,7 +398,7 @@ def test_the_same_hider_would_be_concealed_in_classic(clock):
 
 
 def test_a_caught_player_stays_caught(clock):
-    """No rescues: standing over a frozen team-mate does nothing."""
+    """No rescues: running through a frozen team-mate does nothing."""
     code = playing(clock, "juggernaut", "Alice", "Bob", "Carol")
     seeker, hiders = cast(code)
 
@@ -409,15 +409,13 @@ def test_a_caught_player_stays_caught(clock):
     game.resolve(code, force=True)
     assert caught["state"] == "frozen"
 
-    # A friend stands with them for far longer than a thaw would take.
+    # A friend runs straight through them, which frees anybody in a mode
+    # that has rescues at all.
     put(seeker, 300, 300)
     put(friend, 900, 900)
     game.resolve(code, force=True)
-    clock(config.RESCUE_HOLD_SECONDS * 3)
-    game.resolve(code, force=True)
 
     assert caught["state"] == "frozen", "nobody should have been thawed"
-    assert caught["rescue_since"] is None
 
 
 def test_the_clock_is_shorter_than_classic():

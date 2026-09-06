@@ -85,9 +85,9 @@ export const VISION_RADIUS = 420;
  * is in it. Drawn as a ring around the seeker on their own screen. */
 export const SEARCH_DISTANCE = 120;
 
-/* Stand this close to a frozen team-mate for this long to thaw them. */
+/* Run into a frozen team-mate from this close and they are up again. No
+ * holding still: a rescue is a trip across open floor, not a wait. */
 export const RESCUE_DISTANCE = 60;
-export const RESCUE_HOLD_SECONDS = 1.5;
 
 /* Hiders still inside this radius when the count ends get moved out to a
  * real hiding spot, so the ring is drawn as a warning while counting. */
