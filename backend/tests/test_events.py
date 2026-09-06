@@ -96,6 +96,30 @@ def test_a_non_host_cannot_start_the_game(client, sock):
     assert not events(b, "trigger_start_game")
 
 
+def test_anyone_can_deal_again_once_the_round_is_over(client, sock, monkeypatch):
+    """The room has already agreed to play, so the results card offers
+    everybody a rematch rather than making them wait on the host."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+
+    held = {"now": 1000.0}
+    monkeypatch.setattr(game, "_now", lambda: held["now"])
+    game.start(code)
+    game.resolve(code, force=True)
+    held["now"] += config.COUNTDOWN_SECONDS + 1
+    game.resolve(code, force=True)              # counting -> hunting
+    held["now"] += config.ROUND_SECONDS + 1
+    game.resolve(code, force=True)              # hunting -> over
+    assert game.state(code)["phase"] == "over"
+
+    for c in clients.values():
+        c.get_received()
+
+    clients["Bob"].emit("start_game_request", {"code": code})
+
+    assert events(clients["Alice"], "trigger_start_game")
+    assert game.state(code)["phase"] == "gathering"
+
+
 def test_an_unconnected_socket_cannot_start_a_game(client, sock):
     code = room_with(client, "Alice")
     stranger = sock()

@@ -214,18 +214,29 @@ def on_join_lobby(data):
 
 @socketio.on("start_game_request")
 def on_start_game(data):
-    """The host started a round.
+    """Somebody asked for a round.
 
     Sent from the lobby to begin, and from the game page to play again;
     both mean the same thing, so both land here. Everyone is bounced to
     the game page, which is a no-op for those already on it.
+
+    The first round of a session is the host's to call: they are the one
+    who has been setting the mode and waiting for stragglers. Once a round
+    is *over*, anybody can deal again — the room has already agreed to
+    play, and making four people wait on a host who has put their phone
+    down is not a rule worth having.
     """
     player = rooms.connected_player(request.sid)
-    if player is None or not player["isHost"]:
-        # Only the host starts a round, whatever a client claims.
+    if player is None:
         return
 
     code = rooms.room_code_of(request.sid)
+
+    state = game.state(code)
+    finished = state is not None and state["phase"] == "over"
+    if not player["isHost"] and not finished:
+        return
+
     ok, message = game.start(code)
     if not ok:
         emit("start_rejected", {"message": message})

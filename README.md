@@ -189,7 +189,8 @@ look up existing in the page they run on.
 3. **Game** (`/game_page`) — WASD/arrows and Shift to sprint, or the
    on-screen joystick and B button on touch devices. The HUD tells you
    your role, what you should be doing about it, and how the round stands.
-   When it ends, the host can start another from the results card.
+   When it ends, anybody can start another from the results card — the
+   first round is the host's to call, a rematch is not.
 
 Movement is in pixels per *second* and scaled by frame time, so a 120Hz
 phone and a 60Hz laptop move at the same speed, and diagonals are
