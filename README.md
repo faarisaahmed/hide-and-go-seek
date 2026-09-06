@@ -91,6 +91,17 @@ moonlight across the floor. Some of that is atmosphere, but the floor
 materials and the light do real work: they are how you tell which room
 you have run into when you can only see a few metres.
 
+### The minimap
+
+A plan of the house sits in the corner: rooms, walls, doorways, the base
+and **you**, as an arrow pointing the way you last moved. Never anybody
+else. A map with the other players on it would answer the only question
+the game is asking — the seeker would walk to each dot in turn, and a
+hider would never have to guess where the seeker was. What people
+actually get lost about is the building, and the building is the same
+for everybody, so it costs nothing to hand over. The seeker does not get
+it while they are counting either.
+
 ### Hiding actually hides
 
 The house is furnished, and some of that furniture is hollow — a wardrobe,
@@ -248,8 +259,8 @@ backend/
     vendor/         Socket.IO client, served locally rather than from a CDN
     js/             session.js, api.js, home.js, lobby.js
     js/game/        config, input, map_loader, physics, network, round,
-                    stamina, renderer, hud, and main.js which ties them
-                    together
+                    stamina, renderer, minimap, hud, and main.js which
+                    ties them together
     maps/           Map definitions as JSON: rooms, walls, doorways,
                     windows, furniture, base zones, spawn points
   templates/        Jinja templates (base.html holds shared <head>)

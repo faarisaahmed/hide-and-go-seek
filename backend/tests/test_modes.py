@@ -527,8 +527,11 @@ def test_hiders_keep_their_sight_all_round(clock):
     """The cone is the seeker's trade, not a rule about everybody."""
     room, seeker, hider = _looking_east(clock)
 
-    _place_at(seeker, hider, math.pi, 120)
-    hider["facing"] = 0.0                       # looking the other way
+    # Placed relative to the seeker, whose spot is fixed: the hider was
+    # dropped into a random hiding place when the count ended, and a line
+    # drawn from there might have a wall across it.
+    _place_at(hider, seeker, 0.0, 120)
+    hider["facing"] = math.pi                   # looking the other way
     assert game.can_see(room, hider, seeker)
 
 

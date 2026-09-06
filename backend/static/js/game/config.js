@@ -185,3 +185,12 @@ export const NAME_TAG_OFFSET = 14;
 /* Walls this far outside the viewport are still drawn, so one that is
  * partly on screen does not pop in at the edge. */
 export const CULL_MARGIN = 64;
+
+/* ===== Minimap =====
+ *
+ * In CSS pixels. Big enough that the hall reads as a corridor rather
+ * than a smudge, small enough to sit in a corner of a phone screen
+ * without being the thing you are looking at. The house is letterboxed
+ * into it, so these do not have to match the map's proportions. */
+export const MINIMAP_WIDTH = 172;
+export const MINIMAP_HEIGHT = 114;
