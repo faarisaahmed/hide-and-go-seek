@@ -136,6 +136,39 @@ it came from, a line naming who and how far, and a tone whose volume is
 the distance. A frozen player can still shout, which is the whole reason
 a frozen player is worth going back for.
 
+### Bots
+
+A room of two is a thin game, and "wait until more friends are free" is
+not a fix this can offer. So the host can add bots, and a bot is a player
+record like any other: a name, an emoji, a role. It can be the seeker. It
+can be tagged, frozen and thawed. It counts towards winning.
+
+They play by the same rules as everybody else, which is the part worth
+insisting on. A bot sees through `game.can_see`, so a wall stops it
+looking into the next room, a wardrobe conceals a hider from it, and in
+Blackout it only sees down its own torch. It hears a shout as a bearing
+rounded to a few degrees and one of three words for distance — exactly
+what your screen is handed — and walks towards its guess. It moves a
+shade slower than a person, with a sprint that runs out. What it *does*
+get is the floor plan: it routes door by door through the room graph
+(`maps.route`), which is what stops it walking into walls and stands in
+for what a human picks up after two rounds.
+
+Seeking, it chases anybody in sight and otherwise works through the
+hiding places nearest-first until it has looked in all of them, then
+starts again. Hiding, it gets clear of the base, keeps moving to a
+different room every few seconds, runs from a seeker it can see rather
+than towards home through them, goes to thaw a frozen team-mate when it
+hears one, and breaks for the base once its nerve runs out — a number
+rolled per bot, so a houseful of them does not act as one animal.
+
+The moving-on matters more than any of the rest. The version of this that
+nobody wants is a bot that finds a bush and sits in it for four minutes,
+and the first working version was exactly that: it planned a route and
+threw it away a third of a second later, so it got about a hundred pixels
+per outing. `test_bots.py` measures the distance now, precisely because
+that failure is invisible unless you do.
+
 ### The minimap
 
 A plan of the house sits in the corner: rooms, walls, doorways, the base
@@ -261,6 +294,7 @@ look up existing in the page they run on.
 1. **Home** (`/`) — enter a display name, then create a room or join one
    with its 4-digit code.
 2. **Lobby** (`/room_page`) — see who's in the room, pick an emoji, chat,
+   volunteer to be the seeker, add bots to fill the house out,
    read the rules and the controls. The host picks the mode and gets a
    **Start game** button.
 3. **Game** (`/game_page`) — WASD/arrows to move, Shift to run, Y to
@@ -306,6 +340,7 @@ backend/
   maps.py           Reads map JSON: spawns, the base, hiding spots
   extensions.py     The shared SocketIO object
   rooms.py          In-memory room + player store
+  bots.py           Players with nobody behind them: routing and behaviour
   routes.py         HTTP endpoints (pages and room JSON API)
   events.py         Socket.IO handlers, and the per-player position filter
   static/

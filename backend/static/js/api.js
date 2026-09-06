@@ -53,3 +53,8 @@ export function setVolunteer(code, name, volunteer) {
 export function kickPlayer(code, name, target) {
     return postJSON("/kick", { code, name, target });
 }
+
+/* The host adding or removing a bot. `action` is "add" or "remove". */
+export function changeBots(code, name, action) {
+    return postJSON("/bots", { code, name, action });
+}

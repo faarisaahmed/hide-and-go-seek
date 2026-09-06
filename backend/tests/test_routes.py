@@ -57,6 +57,7 @@ def test_room_info(client):
         "isHost": True,
         "connected": False,
         "volunteer": False,
+        "bot": False,
     }
 
 
@@ -70,7 +71,7 @@ def test_room_info_does_not_leak_socket_ids_or_positions(client):
 
     player = client.get(f"/room/{code}").get_json()["players"][0]
     assert set(player) == {"name", "emoji", "isHost", "connected",
-                           "volunteer"}
+                           "volunteer", "bot"}
 
 
 def test_emoji_is_returned_as_a_character_not_an_escape(client):

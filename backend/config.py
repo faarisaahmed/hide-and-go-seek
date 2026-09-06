@@ -67,6 +67,12 @@ ROUND_SECONDS = 240
 # to work out player centres from the top-left corners it stores.
 PLAYER_SIZE = 40
 
+# Walking pace, in pixels per second, and a mirror of PLAYER_SPEED in the
+# same client config. Human players move themselves and only report where
+# they ended up, so this side never needed the number — until bots, which
+# have nobody to move them and are paced from here.
+PLAYER_SPEED = 340
+
 # Touching distance. Slightly more than PLAYER_SIZE so a tag lands when
 # the two squares visibly overlap rather than only on an exact hit.
 TAG_DISTANCE = 48

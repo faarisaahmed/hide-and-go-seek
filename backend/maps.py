@@ -263,9 +263,181 @@ def random_standing_spot(name, avoid=None, attempts=80):
     return spawn_point(name, 0)
 
 
+def random_standing_spot_center(name, avoid=None):
+    """:func:`random_standing_spot`, as a centre rather than a corner."""
+    x, y = random_standing_spot(name, avoid=avoid)
+    half = config.PLAYER_SIZE / 2
+    return x + half, y + half
+
+
 def _overlaps(a, b):
     return (a["x"] < b["x"] + b["w"] and a["x"] + a["w"] > b["x"]
             and a["y"] < b["y"] + b["h"] and a["y"] + a["h"] > b["y"])
+
+
+# ---------------------------------------------------------------------------
+# Getting about
+# ---------------------------------------------------------------------------
+#
+# Bots need to cross the house, which means knowing that the kitchen
+# connects to the living room and not to the cellar. The map already says
+# so, in the doorways: each one is a hole punched through the wall
+# between exactly two rooms, so probing either side of it gives an
+# adjacency list for free rather than needing a grid and a pathfinder.
+
+_navs = {}
+
+
+def _navigation(name):
+    """``(rooms, links)`` for a map, worked out once.
+
+    ``links`` maps a room's index to a list of ``(neighbour index, door
+    centre)``. Corridors are rooms like any other here — they have no
+    name, but they are what most of the house connects *through*.
+    """
+    if name in _navs:
+        return _navs[name]
+
+    rooms = rooms_of(name)
+    at = {id(room): index for index, room in enumerate(rooms)}
+    links = {index: [] for index in range(len(rooms))}
+
+    for door in _rects(name, "doorways"):
+        cx = door["x"] + door["w"] / 2
+        cy = door["y"] + door["h"] / 2
+
+        # A doorway is a gap in a wall, so it is long along the wall and
+        # thin across it. Probing just past each thin end lands in the
+        # two rooms it joins.
+        if door["w"] >= door["h"]:
+            sides = [(cx, door["y"] - 2), (cx, door["y"] + door["h"] + 2)]
+        else:
+            sides = [(door["x"] - 2, cy), (door["x"] + door["w"] + 2, cy)]
+
+        both = [room_at(name, *side) for side in sides]
+        if any(room is None for room in both):
+            continue
+
+        first, second = (at[id(room)] for room in both)
+        if first == second:
+            continue
+
+        links[first].append((second, (cx, cy)))
+        links[second].append((first, (cx, cy)))
+
+    _navs[name] = (rooms, links)
+    return _navs[name]
+
+
+def _nearest_room(name, cx, cy):
+    """Index of the room containing a point, or of the closest one.
+
+    Somebody standing in a doorway is in no room at all, which is exactly
+    the moment they most need to be told where to go next.
+    """
+    rooms, _ = _navigation(name)
+
+    best = None
+    best_gap = None
+
+    for index, room in enumerate(rooms):
+        if in_rect(room, cx, cy):
+            return index
+
+        gap_x = max(room["x"] - cx, 0, cx - (room["x"] + room["w"]))
+        gap_y = max(room["y"] - cy, 0, cy - (room["y"] + room["h"]))
+        gap = gap_x * gap_x + gap_y * gap_y
+
+        if best_gap is None or gap < best_gap:
+            best, best_gap = index, gap
+
+    return best
+
+
+def route(name, start, goal):
+    """Waypoints from ``start`` to ``goal``: the doors, then the goal.
+
+    A breadth-first walk of the room graph, so a bot crossing the house
+    aims at the next doorway rather than at the wall between it and where
+    it wants to be. Returns just ``[goal]`` when both ends are in the
+    same room, and ``[]`` when there is no way through at all — which on
+    a sane map means the goal is somewhere nobody can stand.
+    """
+    rooms, links = _navigation(name)
+    if not rooms:
+        return [goal]
+
+    here = _nearest_room(name, *start)
+    there = _nearest_room(name, *goal)
+    if here is None or there is None:
+        return [goal]
+    if here == there:
+        return [goal]
+
+    # Breadth-first: every edge is a doorway, so the fewest doorways is
+    # a good enough answer and a much cheaper one than weighing them.
+    came_from = {here: None}
+    queue = [here]
+
+    while queue:
+        current = queue.pop(0)
+        if current == there:
+            break
+
+        for neighbour, door in links[current]:
+            if neighbour in came_from:
+                continue
+            came_from[neighbour] = (current, door)
+            queue.append(neighbour)
+
+    if there not in came_from:
+        return []
+
+    doors = []
+    step = there
+    while came_from[step] is not None:
+        previous, door = came_from[step]
+        doors.append(door)
+        step = previous
+
+    doors.reverse()
+    return doors + [goal]
+
+
+def walk(name, x, y, dx, dy, size):
+    """Move a box and stop it at whatever it runs into. Returns ``(x, y)``.
+
+    The mirror of moveWithCollision in the browser's physics.js, and
+    resolved the same way — one axis at a time, so a bot sliding along a
+    wall slides rather than sticking. It exists because bots are moved by
+    the server and nothing else on this side had ever needed to know that
+    walls are solid: every human player brings their own collision.
+    """
+    obstacles = _rects(name, "walls") + _solid_furniture(name)
+
+    x += dx
+    box = {"x": x, "y": y, "w": size, "h": size}
+    for item in obstacles:
+        if not _overlaps(box, item):
+            continue
+        if dx > 0:
+            x = item["x"] - size
+        elif dx < 0:
+            x = item["x"] + item["w"]
+        box["x"] = x
+
+    y += dy
+    box["y"] = y
+    for item in obstacles:
+        if not _overlaps(box, item):
+            continue
+        if dy > 0:
+            y = item["y"] - size
+        elif dy < 0:
+            y = item["y"] + item["h"]
+        box["y"] = y
+
+    return x, y
 
 
 def in_base(name, cx, cy):

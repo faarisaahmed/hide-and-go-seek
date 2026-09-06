@@ -303,6 +303,34 @@ def can_move(room, player):
     return True
 
 
+def rules_of(state):
+    """The mode's rules for a round state, for callers outside this module.
+
+    :mod:`bots` needs to know whether rescues exist and whether home is
+    worth running to, and reaching into the state's ``mode`` string and
+    resolving it again would be two places to get that wrong.
+    """
+    return modes.get(state["mode"])
+
+
+def round_progress(state):
+    """How much of the hunt has been used up, from 0 to 1.
+
+    Bots use it to decide when to stop hiding and break for home, which
+    wants to be a fraction of the round rather than a number of seconds:
+    the modes do not agree on how long a round is.
+    """
+    if state["phase"] != "hunting" or state["round_ends_at"] is None:
+        return 0.0
+
+    total = modes.get(state["mode"])["round_seconds"]
+    if not total:
+        return 1.0
+
+    left = max(0.0, state["round_ends_at"] - _now())
+    return 1.0 - min(1.0, left / total)
+
+
 def can_stand(room, player, x, y):
     """May this player be at this position, wherever they came from?
 
