@@ -137,6 +137,88 @@ def test_the_seeker_changes_between_rounds(clock):
     assert game.state(code)["tagger"] != first
 
 
+# ---------------------------------------------------------------------------
+# Who is it
+# ---------------------------------------------------------------------------
+#
+# Being the seeker used to be something that happened to you. Asking for
+# it beats the rotation; nobody asking is an even draw.
+
+def test_a_volunteer_gets_the_job(clock):
+    code = make_room("Alice", "Bob", "Carol")
+    rooms.set_volunteer(code, "Carol", True)
+
+    for _ in range(12):
+        ok, message = game.start(code)
+        assert ok, message
+        assert game.state(code)["tagger"] == "carol"
+
+
+def test_the_draw_is_between_the_volunteers_when_there_are_several(clock):
+    code = make_room("Alice", "Bob", "Carol")
+    rooms.set_volunteer(code, "Bob", True)
+    rooms.set_volunteer(code, "Carol", True)
+
+    picked = set()
+    for _ in range(40):
+        game.start(code)
+        picked.add(game.state(code)["tagger"])
+
+    assert picked <= {"bob", "carol"}, "somebody who never asked was picked"
+
+
+def test_asking_beats_the_rotation(clock):
+    """Somebody volunteering two rounds running is asking, not being
+    landed with it, so the "not twice in a row" rule gives way."""
+    code = make_room("Alice", "Bob")
+    rooms.set_volunteer(code, "Bob", True)
+
+    game.start(code)
+    assert game.state(code)["tagger"] == "bob"
+
+    game.state(code)["last_tagger"] = "bob"
+    game.start(code)
+    assert game.state(code)["tagger"] == "bob"
+
+
+def test_taking_your_hand_down_puts_you_back_in_the_crowd(clock):
+    code = make_room("Alice", "Bob", "Carol")
+    rooms.set_volunteer(code, "Carol", True)
+    rooms.set_volunteer(code, "Carol", False)
+
+    picked = set()
+    for _ in range(40):
+        game.start(code)
+        game.state(code)["last_tagger"] = None
+        picked.add(game.state(code)["tagger"])
+
+    assert len(picked) > 1, "the draw closed around one player"
+
+
+def test_with_nobody_asking_everybody_is_in_the_draw(clock):
+    code = make_room("Alice", "Bob", "Carol")
+
+    picked = set()
+    for _ in range(60):
+        game.start(code)
+        # Clear the rotation each time, or the previous seeker is held
+        # back and this would only ever be testing that.
+        game.state(code)["last_tagger"] = None
+        picked.add(game.state(code)["tagger"])
+
+    assert picked == {"alice", "bob", "carol"}
+
+
+def test_a_removed_player_is_not_in_the_draw(clock):
+    code = make_room("Alice", "Bob", "Carol")
+    ok, message = rooms.remove_player(code, "Carol")
+    assert ok, message
+
+    for _ in range(20):
+        game.start(code)
+        assert game.state(code)["tagger"] in ("alice", "bob")
+
+
 def test_a_new_round_puts_everyone_back_on_the_base(clock):
     """Including a round the host restarts mid-hunt, which is allowed."""
     code = hunting(clock, "Alice", "Bob")

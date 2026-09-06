@@ -41,3 +41,15 @@ export function setMode(code, name, mode) {
 export function sendChat(code, name, message) {
     return postJSON("/send_chat", { code, name, message });
 }
+
+/* Put your own hand up to be the seeker, or take it down. No target in
+ * the payload on purpose: you can only ever volunteer yourself. */
+export function setVolunteer(code, name, volunteer) {
+    return postJSON("/volunteer", { code, name, volunteer });
+}
+
+/* The host removing somebody. `name` is who is asking, `target` is who
+ * is going; the server checks the first is the host. */
+export function kickPlayer(code, name, target) {
+    return postJSON("/kick", { code, name, target });
+}

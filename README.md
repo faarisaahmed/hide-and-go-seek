@@ -41,7 +41,26 @@ middle of the house.
    while the others are still out there is a position, not a result, so
    the round plays on.
 
-Then the host can deal again, and the seeker rotates.
+Then anybody can deal again from the results card, and the seeker
+rotates.
+
+### Who is it
+
+Being the seeker used to be something that happened to you. In the lobby
+anyone can put their hand up — **I'll be the seeker** — and the room can
+see who has. If anybody asked, the round draws from them and nobody
+else; wanting the job is the best reason to have it, and it beats the
+rotation outright, so somebody who volunteers two rounds running is
+asking rather than being landed with it. If nobody asked it is an even
+draw among everybody, minus whoever had it last round when there is
+somebody else to pick.
+
+The host can also remove a player, with the × on their row. That is
+host-only and checked on the server, and the host cannot remove
+themselves — leaving is what the Leave button is for, and doing it here
+would hand the room to somebody by accident. A round that loses the
+person it was waiting on resolves immediately rather than leaving the
+rest of the room in a house with nothing left to find.
 
 ## The modes
 

@@ -160,6 +160,11 @@ def _new_player(room, name, is_host):
         # socket, which is what lets a reconnect resume in place.
         "in_game": False,
 
+        # Whether they have put their hand up to be the seeker. A
+        # standing offer rather than a per-round one: somebody who likes
+        # seeking can leave it on and stop being asked.
+        "volunteer": False,
+
         # Round state, owned by game.py. "hider" / "tagger" once a round
         # has started, None in the lobby.
         "role": None,
@@ -226,6 +231,7 @@ def public_view(code):
                 "emoji": p["emoji"],
                 "isHost": p["isHost"],
                 "connected": p["sid"] is not None,
+                "volunteer": p["volunteer"],
             }
             for p in room["players"].values()
         ],
@@ -312,6 +318,55 @@ def set_emoji(code, name, emoji):
         return False, "Emoji already taken!"
 
     player["emoji"] = emoji
+    return True, None
+
+
+def set_volunteer(code, name, wants):
+    """Put a player's hand up, or take it down. Returns ``(ok, message)``.
+
+    Anybody may volunteer for themselves and nobody may volunteer anybody
+    else, which is the only rule worth having here: the point is that
+    being the seeker stops being something that happens *to* you.
+    """
+    room = get(code)
+    if room is None:
+        return False, "Room not found"
+
+    player = room["players"].get(_key(name)) if isinstance(name, str) else None
+    if player is None:
+        return False, "You are not in this room"
+
+    player["volunteer"] = bool(wants)
+    return True, None
+
+
+def volunteers(room):
+    """Player keys of everyone who has offered to be the seeker."""
+    return [key for key, p in room["players"].items() if p["volunteer"]]
+
+
+def remove_player(code, name):
+    """Drop a player from a room for good. Returns ``(ok, message)``.
+
+    Used by the host to remove somebody. Their socket is left connected —
+    :mod:`events` tells them they are out and lets their page navigate
+    away, which is friendlier than yanking the connection out from under
+    a screen that would then just look broken.
+    """
+    room = get(code)
+    if room is None:
+        return False, "Room not found"
+
+    player = room["players"].pop(_key(name), None) if isinstance(name, str) else None
+    if player is None:
+        return False, "They are not in this room"
+
+    # Nobody can see somebody who is no longer in the house.
+    if player["sid"] is not None:
+        _sid_index.pop(player["sid"], None)
+        for other in room["players"].values():
+            other["seen_by"].discard(player["sid"])
+
     return True, None
 
 

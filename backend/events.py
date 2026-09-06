@@ -357,6 +357,24 @@ def _hold_still(player, data):
         emit("position_correction", {"x": player["x"], "y": player["y"]})
 
 
+def announce_kick(code, sid):
+    """Tell a removed player they are out, and the room that they are gone.
+
+    Called from the HTTP handler rather than a socket one, because the
+    host presses the button over the same JSON API the rest of the lobby
+    uses. Their socket is left connected: their page needs a moment to
+    read the message and take itself home, and closing the connection
+    from under it would leave them looking at a room that had simply
+    stopped responding.
+    """
+    if sid is not None:
+        socketio.emit("kicked", {}, to=sid)
+        socketio.emit("player_left", {"id": sid}, to=code)
+
+    # A round they were part of may now be won, over, or short a seeker.
+    _publish(code, game.resolve(code, force=True) | {"players"})
+
+
 @socketio.on("shout")
 def on_shout(data):
     """A player made a noise.

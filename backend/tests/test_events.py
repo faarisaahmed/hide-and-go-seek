@@ -732,3 +732,44 @@ def test_nobody_shouts_in_the_lobby(client, sock):
     clients["Bob"].emit("shout", {})
     assert not events(clients["Alice"], "shout_heard")
     assert not events(clients["Bob"], "shout_made")
+
+
+# ---------------------------------------------------------------------------
+# Being removed
+# ---------------------------------------------------------------------------
+
+def test_a_removed_player_is_told_and_the_room_hears_about_it(client, sock):
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    for c in clients.values():
+        c.get_received()
+
+    client.post("/kick", json={"code": code, "name": "Alice", "target": "Bob"})
+
+    assert events(clients["Bob"], "kicked"), "their page has to know to leave"
+
+    received = clients["Alice"].get_received()
+    assert payloads(received, "player_left"), "stop drawing them"
+    assert [p["name"] for p in payloads(received, "room_updated")[-1]["players"]] \
+        == ["Alice"]
+
+
+def test_removing_the_last_hider_mid_round_settles_it(client, sock, monkeypatch):
+    """A round that has lost the person it was waiting on has to resolve,
+    or the rest of the room is left standing in a house with nothing to
+    find."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    players = rooms.get(code)["players"]
+    seeker_key = game.state(code)["tagger"]
+    hider_key = next(k for k in players if k != seeker_key)
+    host_name = next(p["name"] for p in players.values() if p["isHost"])
+    hider_name = players[hider_key]["name"]
+
+    if hider_name == host_name:
+        return  # the host cannot remove themselves; nothing to check here
+
+    client.post("/kick", json={"code": code, "name": host_name,
+                               "target": hider_name})
+
+    assert game.state(code)["phase"] == "over"
