@@ -88,6 +88,32 @@ RESCUE_DISTANCE = 60
 # client, so a dark house cannot be undone by reading the network.
 VISION_RADIUS = 420
 
+# ---------------------------------------------------------------------------
+# Shouting
+# ---------------------------------------------------------------------------
+# The one thing in the house that goes through walls. A shout is how you
+# say "clear" or "I am frozen, come and get me" to people you cannot see
+# — and how the seeker finds out roughly where you were standing when you
+# said it, which is what stops it being free.
+
+# Further than anybody can see, deliberately: a shout is worth something
+# precisely because it reaches past sight. Around half the width of the
+# house, so it crosses a few rooms rather than the whole building —
+# short enough that a shout is news about somewhere in particular, long
+# enough that there is usually somebody to hear it.
+SHOUT_HEAR_RADIUS = 1300
+
+# What a listener is told, rounded off. Whoever hears it gets a bearing
+# to this many degrees and one of three words for distance, never a
+# coordinate — a shout should point at a room, not paint a target.
+SHOUT_BEARING_DEGREES = 15
+SHOUT_CLOSE = 220
+SHOUT_NEARBY = 520
+
+# One shout every couple of seconds. Long enough that holding the key
+# down is not a siren, short enough to answer somebody.
+SHOUT_COOLDOWN_SECONDS = 2.0
+
 # Hiding right next to the base and stepping in the moment the count ends
 # is not hiding. Anyone still this close when the count ends is moved out
 # to a real hiding spot.

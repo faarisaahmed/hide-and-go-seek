@@ -278,6 +278,41 @@ canvas {
     pointer-events: none;
 }
 
+/* ===== "You heard something" =====
+   Sits above the hiding note. Warm rather than either team's colour: a
+   noise tells you where somebody is, not whose side they are on. */
+
+.shout-note {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(224px, calc(env(safe-area-inset-bottom) + 212px));
+    z-index: 12;
+    margin: 0;
+
+    max-width: min(92vw, 380px);
+    padding: 8px 16px;
+
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    color: #ffd479;
+
+    background: rgba(255, 212, 121, 0.10);
+    border: 1px solid rgba(255, 212, 121, 0.38);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+
+    pointer-events: none;
+}
+
+/* Somebody in the same room as you is worth looking up for. */
+.shout-note.is-close {
+    border-color: rgba(255, 212, 121, 0.75);
+    background: rgba(255, 212, 121, 0.18);
+}
+
 /* ===== Results overlay ===== */
 
 .overlay {
@@ -485,7 +520,53 @@ canvas {
     background: rgba(255, 255, 255, 0.16);
 }
 
-/* B is sprint, so it gets the accent and a label. */
+/* What each pad does, under the pad. Touch players used to have four
+   identical circles and no way to find out which of them ran, and B
+   being the accent colour told them it was special without telling them
+   what it was for. */
+.btn-pad[data-does]::after {
+    content: attr(data-does);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 3px;
+
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+
+    pointer-events: none;
+}
+
+/* X and A do nothing yet. They are there for the shape of a thumb pad,
+   so they are dimmed rather than labelled. */
+.btn-pad--spare {
+    opacity: 0.4;
+}
+
+/* The joystick says what it is too — above it, since below it is the
+   bottom of the screen. */
+.pad-label {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 100%;
+    margin-bottom: 5px;
+
+    font-family: var(--font);
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+
+    pointer-events: none;
+}
+
+/* B runs, so it gets the accent. */
 #btnB {
     color: var(--accent-ink);
     background: linear-gradient(180deg, var(--accent), var(--accent-deep));
@@ -496,6 +577,19 @@ canvas {
 #btnB:active,
 #btnB.is-held {
     box-shadow: 0 1px 0 #124b8c;
+}
+
+/* Y shouts, in the colour a shout is drawn in. */
+#btnY {
+    color: #2a1c00;
+    background: linear-gradient(180deg, #ffd479, #e0a92f);
+    border-color: transparent;
+    box-shadow: 0 4px 0 #8a6410;
+}
+
+#btnY:active,
+#btnY.is-held {
+    box-shadow: 0 1px 0 #8a6410;
 }
 
 /* Diamond layout, Switch style. */
@@ -570,7 +664,10 @@ canvas {
    walking pace without ever finding out that Shift runs.
 
    Sits above the stamina bar, between the thumb pad and the button pad,
-   where the bottom of the screen is otherwise empty. */
+   where the bottom of the screen is otherwise empty. It used to fade out
+   the first time you sprinted, on the theory that a control you have
+   found is one you know — but people went on asking what the buttons
+   did, and a strip of keycaps costs nothing to leave up. */
 
 .keyhint {
     display: none;
@@ -593,22 +690,12 @@ canvas {
 
     white-space: nowrap;
     pointer-events: none;
-
-    /* Fades rather than vanishing, so using Shift for the first time
-       reads as "yes, that" instead of the screen glitching. */
-    transition: opacity 0.45s ease;
 }
 
 /* Only worth screen space where there is a keyboard to press. This
    mirrors the query that fades the thumb pad down on the same devices. */
 @media (hover: hover) and (pointer: fine) {
     .keyhint { display: flex; }
-}
-
-/* Set once the player has actually sprinted: they found it, so stop
-   saying it. Left in the layout so nothing else shifts as it goes. */
-.keyhint.is-learnt {
-    opacity: 0;
 }
 
 .keyhint__group {

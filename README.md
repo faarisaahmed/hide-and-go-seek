@@ -91,6 +91,24 @@ moonlight across the floor. Some of that is atmosphere, but the floor
 materials and the light do real work: they are how you tell which room
 you have run into when you can only see a few metres.
 
+### Shouting
+
+Sound is the one thing in this house that goes through walls. **Y**, or
+the yellow **Y** button on a phone, makes a noise; everybody within
+`SHOUT_HEAR_RADIUS` hears it, walls or no walls. That is how you say
+"clear", or "I am frozen behind the sofa and could use a hand", to
+somebody you cannot see — and it costs exactly what it should, because
+the seeker has ears too and has just been told roughly which end of the
+house you are in.
+
+Roughly, and no more than roughly. Listeners are sent a bearing rounded
+to `SHOUT_BEARING_DEGREES` and one of three words for distance, never a
+coordinate: a shout should point at a room, not paint a target. On the
+screen it arrives as a ripple on the rim of your vision pointing the way
+it came from, a line naming who and how far, and a tone whose volume is
+the distance. A frozen player can still shout, which is the whole reason
+a frozen player is worth going back for.
+
 ### The minimap
 
 A plan of the house sits in the corner: rooms, walls, doorways, the base
@@ -218,9 +236,12 @@ look up existing in the page they run on.
 2. **Lobby** (`/room_page`) — see who's in the room, pick an emoji, chat,
    read the rules and the controls. The host picks the mode and gets a
    **Start game** button.
-3. **Game** (`/game_page`) — WASD/arrows and Shift to sprint, or the
-   on-screen joystick and B button on touch devices. The HUD tells you
-   your role, what you should be doing about it, and how the round stands.
+3. **Game** (`/game_page`) — WASD/arrows to move, Shift to run, Y to
+   shout; or the joystick and the labelled **B** and **Y** buttons on
+   touch devices. The keys stay on screen for the whole round and the
+   thumb pads say what they do, because a control nobody finds is not a
+   mechanic. The HUD tells you your role, what you should be doing about
+   it, and how the round stands.
    When it ends, anybody can start another from the results card — the
    first round is the host's to call, a rematch is not.
 
@@ -259,8 +280,8 @@ backend/
     vendor/         Socket.IO client, served locally rather than from a CDN
     js/             session.js, api.js, home.js, lobby.js
     js/game/        config, input, map_loader, physics, network, round,
-                    stamina, renderer, minimap, hud, and main.js which
-                    ties them together
+                    stamina, shouts, renderer, minimap, hud, and main.js
+                    which ties them together
     maps/           Map definitions as JSON: rooms, walls, doorways,
                     windows, furniture, base zones, spawn points
   templates/        Jinja templates (base.html holds shared <head>)

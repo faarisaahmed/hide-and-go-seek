@@ -372,6 +372,88 @@ def can_see(room, viewer, target):
 
 
 # ---------------------------------------------------------------------------
+# Shouting
+# ---------------------------------------------------------------------------
+
+def _nearness(distance):
+    if distance <= config.SHOUT_CLOSE:
+        return "close"
+    if distance <= config.SHOUT_NEARBY:
+        return "nearby"
+    return "far"
+
+
+def _rounded_bearing(listener, shouter):
+    """Which way the noise came from, to the nearest few degrees.
+
+    Rounded on purpose. An exact bearing plus a distance is a position,
+    and handing one to every client in earshot would undo the whole point
+    of filtering positions in the first place. Rounded, it points at a
+    room.
+    """
+    lx, ly = _center(listener)
+    sx, sy = _center(shouter)
+
+    step = math.radians(config.SHOUT_BEARING_DEGREES)
+    return round(math.atan2(sy - ly, sx - lx) / step) * step
+
+
+def earshot(room, shouter):
+    """Everyone who hears a shout, and roughly where it came from.
+
+    Sound is the one thing in the house that goes through walls — that is
+    what makes shouting worth a button. It is also what makes it a risk,
+    since the seeker has ears too, and a hider who says "clear" has just
+    told them which end of the house to search.
+
+    Yields ``(listener, payload)``. What is in the payload is a bearing
+    and one of three words for distance, never a coordinate.
+    """
+    heard = []
+
+    for listener in room["players"].values():
+        if listener is shouter or listener["sid"] is None:
+            continue
+        if not listener["in_game"]:
+            continue
+
+        distance = _distance(listener, shouter)
+        if distance > config.SHOUT_HEAR_RADIUS:
+            continue
+
+        heard.append((listener, {
+            "name": shouter["name"],
+            "emoji": shouter["emoji"],
+            "role": shouter["role"],
+            "state": shouter["state"],
+            "bearing": _rounded_bearing(listener, shouter),
+            "nearness": _nearness(distance),
+        }))
+
+    return heard
+
+
+def can_shout(room, player, now=None):
+    """May this player make a noise right now?
+
+    Only once there is a round to shout into, and only every so often, so
+    that holding the key down is not a siren. Being frozen is no bar —
+    "I am over here and I need somebody" is the single most useful thing
+    a tagged player can say.
+    """
+    phase = _state(room)["phase"]
+    if phase not in ("counting", "hunting"):
+        return False
+
+    now = _now() if now is None else now
+    return now - player["shouted_at"] >= config.SHOUT_COOLDOWN_SECONDS
+
+
+def mark_shouted(player, now=None):
+    player["shouted_at"] = _now() if now is None else now
+
+
+# ---------------------------------------------------------------------------
 # Advancing the round
 # ---------------------------------------------------------------------------
 

@@ -26,6 +26,7 @@ import {
     REMOTE_SNAP_DISTANCE,
 } from "./config.js";
 import { applyState } from "./round.js";
+import { noteShout, playOwnShout } from "./shouts.js";
 
 /* Remote players we can currently see, keyed by their socket id. */
 const remotePlayers = {};
@@ -89,6 +90,15 @@ export function join({ code, name, localPlayer }) {
 
         socket.on("game_state", applyState);
 
+        // Somebody in earshot made a noise. A bearing and one of three
+        // words for distance — never a position, since a shout is meant
+        // to point at a room rather than paint a target.
+        socket.on("shout_heard", noteShout);
+
+        // Our own, so the button does something even when there is
+        // nobody within a hundred feet to hear it.
+        socket.on("shout_made", playOwnShout);
+
         // Sent when a new round puts us back on the base, and as a
         // correction if we tried to move while counting or frozen.
         socket.on("position_correction", (data) => {
@@ -128,6 +138,13 @@ function startReporting(socket, localPlayer) {
         lastY = localPlayer.y;
         lastSentAt = Date.now();
     }, NETWORK_TICK_MS);
+}
+
+
+/* Make a noise. The server decides whether the cooldown has run and who
+ * is close enough to hear it; this only asks. */
+export function shout(socket) {
+    socket.emit("shout", {});
 }
 
 

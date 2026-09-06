@@ -32,6 +32,7 @@ import {
 } from "./config.js";
 import { hideSpotAt } from "./map_loader.js";
 import { baseIsWall, getRound, playerNamed } from "./round.js";
+import { activeShouts } from "./shouts.js";
 
 /*
  * Rounded rectangles, with a square fallback.
@@ -683,6 +684,55 @@ export function createRenderer(canvas) {
     }
 
     /*
+     * A ripple at the edge of the screen for each shout still ringing,
+     * pointing the way the noise came from.
+     *
+     * Drawn on the rim rather than at a point in the world because the
+     * server does not tell us where the shouter is — only a bearing
+     * rounded to a few degrees and roughly how far. Painting a marker on
+     * the floor would be claiming to know something we were deliberately
+     * not told; a direction on the edge of your vision is what hearing
+     * somebody actually gives you.
+     */
+    function drawShouts(now) {
+        // Inside the HUD's furniture rather than under it: the strip of
+        // keycaps along the bottom sits over the canvas, and a ripple
+        // drawn behind it is a ripple nobody sees.
+        const rim = Math.min(viewWidth, viewHeight) * 0.34;
+        const centreX = viewWidth / 2;
+        const centreY = viewHeight / 2;
+
+        for (const shout of activeShouts(now)) {
+            const x = centreX + Math.cos(shout.bearing) * rim;
+            const y = centreY + Math.sin(shout.bearing) * rim;
+
+            // Close shouts land bigger and hang on the screen the same
+            // length of time, so distance reads before the words do.
+            const weight = shout.nearness === "close" ? 1
+                : shout.nearness === "nearby" ? 0.72 : 0.5;
+
+            ctx.save();
+            ctx.globalAlpha = shout.life * 0.9;
+            ctx.translate(x, y);
+            ctx.rotate(shout.bearing);
+
+            ctx.strokeStyle = COLORS.shout;
+            ctx.lineWidth = 3.5;
+
+            // Three arcs bulging the way the noise came from, spreading
+            // as the shout fades. A sound, drawn.
+            for (let i = 0; i < 3; i++) {
+                const spread = (16 + i * 13) * weight + (1 - shout.life) * 14;
+                ctx.globalAlpha = shout.life * (0.85 - i * 0.22);
+                ctx.beginPath();
+                ctx.arc(0, 0, spread, -0.72, 0.72);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+    }
+
+    /*
      * A chevron at the edge of the screen pointing home, with how far it
      * is. Hiders have to get back to a base they usually cannot see, and
      * hunting for it in the dark is tedious rather than tense.
@@ -780,6 +830,10 @@ export function createRenderer(canvas) {
         }
 
         drawHomeCompass(map, round, localPlayer);
+
+        // Over the darkness: you hear a shout through a wall, which is
+        // the entire reason for having one.
+        drawShouts(now);
     }
 
     return { draw };

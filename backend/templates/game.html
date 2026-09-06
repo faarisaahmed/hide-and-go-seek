@@ -53,16 +53,21 @@
 {# Confirmation that the furniture you are standing on is hiding you. #}
 <p class="stash" id="hidingNote" hidden></p>
 
+{# What you just heard, and roughly from where. #}
+<p class="shout-note" id="shoutNote" hidden></p>
+
 {# Sprint stamina. Sits apart from the thumb pad so it stays readable on
    a desktop, where the pad is faded right down. #}
 <div class="stamina" id="stamina">
     <div class="stamina__fill" id="staminaFill"></div>
 </div>
 
-{# What the keys are. A touch player can see a joystick and a B button, so
-   they find out by looking; a keyboard player was never told anything, and
-   people were finishing whole rounds without discovering that Shift runs.
-   Shown only on devices with a keyboard, and only until you have used it. #}
+{# What the keys are, kept on screen for the whole round rather than
+   faded out once you have used them. It used to disappear the moment you
+   pressed Shift, on the theory that a control you have found is a
+   control you know — but people were still asking what the buttons did,
+   and a bar of keycaps at the bottom of the screen costs nothing.
+   Keyboards only: touch players get the labelled pads instead. #}
 <div class="keyhint" id="keyHint">
     <span class="keyhint__group">
         <kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd>
@@ -73,6 +78,10 @@
     <span class="keyhint__group">
         <kbd class="kbd kbd--wide">Shift</kbd>
         <span class="keyhint__label">run</span>
+    </span>
+    <span class="keyhint__group">
+        <kbd class="kbd">Y</kbd>
+        <span class="keyhint__label">shout</span>
     </span>
 </div>
 
@@ -96,17 +105,20 @@
     </div>
 </div>
 
-{# Touch controls. Faded out on devices with a mouse. #}
+{# Touch controls, faded out on devices with a mouse. The two that do
+   something say what they do underneath; X and A are there for the shape
+   of the pad and are deliberately quiet. #}
 <div id="controls">
     <div id="joystick">
         <div id="stick"></div>
+        <span class="pad-label">Move</span>
     </div>
 
     <div id="buttons">
-        <div id="btnX" class="btn-pad">X</div>
-        <div id="btnA" class="btn-pad">A</div>
-        <div id="btnB" class="btn-pad">B</div>
-        <div id="btnY" class="btn-pad">Y</div>
+        <div id="btnX" class="btn-pad btn-pad--spare">X</div>
+        <div id="btnA" class="btn-pad btn-pad--spare">A</div>
+        <div id="btnB" class="btn-pad" data-does="Run">B</div>
+        <div id="btnY" class="btn-pad" data-does="Shout">Y</div>
     </div>
 </div>
 {% endblock %}

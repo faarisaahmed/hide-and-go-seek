@@ -69,19 +69,30 @@ def test_elements_the_lobby_reveals_start_hidden():
         assert "hidden" in tag.group(0), f"{element_id} does not start hidden"
 
 
-def test_the_sprint_key_is_written_down_where_players_will_see_it():
-    """Sprint is only a mechanic if people know it is there.
+def test_every_control_is_written_down_where_players_will_see_it():
+    """A control is only a mechanic if people know it is there.
 
-    Touch players find the B button by looking at it. Keyboard players
-    had nothing to look at, and played whole rounds without discovering
-    that Shift runs, so both pages now say so. If a redesign drops the
-    hint the mechanic quietly stops existing for half the players, and
-    nothing else would catch that.
+    Keyboard players had nothing to look at and played whole rounds
+    without discovering that Shift runs; touch players had four
+    identical circles and no idea which of them did anything. Both are
+    spelled out now, on the way in and on the screen itself. If a
+    redesign drops one, the mechanic quietly stops existing for half the
+    players and nothing else would catch it.
     """
-    for page in ["room.html", "game.html"]:
+    for page in ["index.html", "room.html", "game.html"]:
         markup = read("..", "templates", page)
-        assert "Shift" in markup, f"{page} never mentions the sprint key"
         assert "kbd" in markup, f"{page} has no keycaps to read"
+
+        for key in ["Shift", ">Y<"]:
+            assert key in markup, f"{page} never mentions {key}"
+
+
+def test_the_thumb_pad_says_what_its_buttons_do():
+    """Four identical circles is a puzzle, not a control scheme."""
+    markup = read("..", "templates", "game.html")
+
+    for action in ["Run", "Shout", "Move"]:
+        assert action in markup, f"no on-screen label for {action}"
 
 
 def test_pages_load_nothing_from_the_internet():
