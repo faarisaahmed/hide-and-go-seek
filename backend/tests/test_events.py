@@ -503,6 +503,53 @@ def test_a_hider_in_the_furniture_is_withheld_until_searched(client, sock, monke
     assert payloads(clients[seeker_name], "player_revealed")[-1]["name"] == hider_name
 
 
+def test_a_seeker_claiming_to_be_on_the_base_is_put_back(client, sock, monkeypatch):
+    """The client has an invisible wall there; this is for the one that
+    has had the wall edited out of it."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    seeker_key = game.state(code)["tagger"]
+    players = rooms.get(code)["players"]
+    seeker_name = players[seeker_key]["name"]
+
+    players[seeker_key]["x"], players[seeker_key]["y"] = 1140, 700
+    was = (players[seeker_key]["x"], players[seeker_key]["y"])
+    for c in clients.values():
+        c.get_received()
+
+    base = maps.base_zones(config.DEFAULT_MAP)[0]
+    clients[seeker_name].emit("player_move", {"x": base["x"] + 10,
+                                              "y": base["y"] + 10})
+
+    assert (players[seeker_key]["x"], players[seeker_key]["y"]) == was
+    assert payloads(clients[seeker_name], "position_correction")[-1] == {
+        "x": was[0], "y": was[1],
+    }
+
+
+def test_a_hider_walking_onto_the_base_is_left_alone(client, sock, monkeypatch):
+    """Same square, opposite answer: it is the hiders' finish line."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    seeker_key = game.state(code)["tagger"]
+    players = rooms.get(code)["players"]
+    hider_key = next(k for k in players if k != seeker_key)
+    hider_name = players[hider_key]["name"]
+
+    for c in clients.values():
+        c.get_received()
+
+    base = maps.base_zones(config.DEFAULT_MAP)[0]
+    clients[hider_name].emit("player_move", {"x": base["x"] + 10,
+                                             "y": base["y"] + 10})
+
+    assert (players[hider_key]["x"], players[hider_key]["y"]) == (base["x"] + 10,
+                                                                 base["y"] + 10)
+    assert players[hider_key]["state"] == "safe"
+
+
 def test_a_tag_lands_on_the_move_that_makes_contact(client, sock, monkeypatch):
     code, clients = in_world(client, sock, "Alice", "Bob")
     held = start_hunting(code, monkeypatch)

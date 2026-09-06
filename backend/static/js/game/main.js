@@ -23,7 +23,7 @@ import { loadMap } from "./map_loader.js";
 import { getRemotePlayers, interpolateRemotes, join } from "./network.js";
 import { moveWithCollision } from "./physics.js";
 import { createRenderer } from "./renderer.js";
-import { canMove, getRound, playerNamed } from "./round.js";
+import { baseIsWall, canMove, getRound, playerNamed } from "./round.js";
 import { resetStamina, stepStamina } from "./stamina.js";
 
 const els = {
@@ -125,8 +125,13 @@ async function start() {
             // round to face along it.
             localPlayer.facing = Math.atan2(y, x);
 
+            // The base is solid to the seeker mid-hunt and open floor to
+            // everybody else, so it is handed to the collision pass per
+            // frame rather than living in the map's obstacle list.
+            const blocked = baseIsWall(localPlayer.role) ? map.base_zones : null;
+
             const distance = PLAYER_SPEED * (running ? SPRINT_MULTIPLIER : 1) * dt;
-            moveWithCollision(localPlayer, map, x * distance, y * distance);
+            moveWithCollision(localPlayer, map, x * distance, y * distance, blocked);
         }
 
         // Grey the thumb pad out when the round says you cannot move, so

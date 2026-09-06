@@ -29,13 +29,17 @@ middle of the house.
    proper hiding spot — camping the base is not hiding.
 3. The seeker hunts. Touching a hider **freezes** them where they stand.
 4. A hider who is still free **thaws** a frozen team-mate by running
-   into them — contact, no waiting. Someone who already made it home
-   cannot, so a rescue always costs somebody their safety.
-5. **Hiders win** by getting every one of themselves back onto the base.
-   **The seeker wins** by freezing everyone, or by running out the clock.
-   Those three are the *only* ways a round ends: one hider home while the
-   others are still out there is a position, not a result, so the round
-   plays on.
+   into them — contact, no waiting. Somebody stood on the base cannot,
+   so a rescue always costs the rescuer their safety.
+5. The base keeps a hider safe only while they are **stood on it**, and
+   the seeker cannot set foot on it at all — it is a wall to them. Step
+   off and you are fair game again: safety is a place, not a prize you
+   keep.
+6. **Hiders win** by getting every one of themselves onto the base at
+   once. **The seeker wins** by freezing everyone, or by running out the
+   clock. Those three are the *only* ways a round ends: one hider home
+   while the others are still out there is a position, not a result, so
+   the round plays on.
 
 Then the host can deal again, and the seeker rotates.
 

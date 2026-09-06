@@ -308,7 +308,7 @@ def on_player_move(data):
     if room is None or player is None or not player["in_game"]:
         return
 
-    if game.can_move(room, player):
+    if game.can_move(room, player) and _somewhere_allowed(room, player, data):
         _, moved = rooms.move(request.sid, data.get("x"), data.get("y"),
                               data.get("facing"))
         if moved is not None:
@@ -323,6 +323,22 @@ def on_player_move(data):
     changes = game.resolve(code)
     if changes:
         _publish(code, changes)
+
+
+def _somewhere_allowed(room, player, data):
+    """Is the place this client says it has reached one it may be in?
+
+    Only the base wall keeps the seeker out today. Walls are left to the
+    client, which is the long-standing trade in this game: the server
+    takes each client's word for its own position, and cheats it with
+    nothing to gain. Standing on the base is different — there is a round
+    to win by doing it.
+    """
+    x, y = data.get("x"), data.get("y")
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+        return True  # junk; rooms.move throws it out anyway
+
+    return game.can_stand(room, player, float(x), float(y))
 
 
 def _hold_still(player, data):
