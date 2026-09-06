@@ -4,9 +4,11 @@
 One player is the seeker. Everyone starts on the home base in the middle
 of the house, the seeker counts to twenty with their eyes shut, and the
 rest scatter. Then the seeker hunts. A tagged hider is frozen where they
-stand until a free hider stands with them long enough to thaw them. The
-seeker wins by freezing everyone; the hiders win by getting every one of
-themselves back onto the base.
+stand until a free hider walks into them. The seeker wins by freezing
+everyone; the hiders win by getting every one of themselves back onto the
+base. Anything short of one of those two — somebody home while somebody
+else is still out there — is a position rather than a result, and the
+round plays on until the clock decides it.
 
 Everything here is server-authoritative. Clients are told what their
 role is and what phase the round is in, but they do not get to decide who
@@ -550,13 +552,23 @@ def _joining(room):
 
 
 def _outcome(room, game, rules, now):
-    """End the round if somebody has won it."""
+    """End the round if somebody has won it.
+
+    There are exactly three ways a hunt finishes: every hider frozen,
+    every hider home, or the clock running out. Any mixture of the two
+    states is still a live round — somebody home while somebody else is
+    frozen is a position, not a result, and ending there took the round
+    away from players who were still in it.
+    """
     if rules["seekers"] == "all_but_one":
         return _sardines_outcome(room, game, now)
 
-    # Only players who are actually here can still change the result. A
-    # hider whose phone dropped must not hold the round open.
-    hiders = [h for h in _hiders(room) if h["sid"] is not None]
+    # Everybody the round is still waiting on, including anyone whose
+    # phone dropped a moment ago. A socket that stays gone is dealt with
+    # by rooms.py dropping the player after the grace period, which is
+    # what stops a lost connection either ending the round on the spot or
+    # holding it open forever.
+    hiders = _hiders(room)
 
     if not hiders:
         # Nobody is hiding any more. Where a tag recruits the tagged that
@@ -565,9 +577,11 @@ def _outcome(room, game, rules, now):
         if rules["on_tag"] == "convert":
             _finish(game, "tagger", None)
             return {"players"}
-    elif all(h["state"] != "free" for h in hiders):
-        everyone_home = all(h["state"] == "safe" for h in hiders)
-        _finish(game, "hiders" if everyone_home else "tagger", None)
+    elif all(h["state"] == "safe" for h in hiders):
+        _finish(game, "hiders", None)
+        return {"players"}
+    elif all(h["state"] == "frozen" for h in hiders):
+        _finish(game, "tagger", None)
         return {"players"}
 
     if now >= game["round_ends_at"]:

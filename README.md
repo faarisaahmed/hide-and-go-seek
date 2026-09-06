@@ -33,6 +33,9 @@ middle of the house.
    home cannot, so a rescue always costs somebody their safety.
 5. **Hiders win** by getting every one of themselves back onto the base.
    **The seeker wins** by freezing everyone, or by running out the clock.
+   Those three are the *only* ways a round ends: one hider home while the
+   others are still out there is a position, not a result, so the round
+   plays on.
 
 Then the host can deal again, and the seeker rotates.
 
