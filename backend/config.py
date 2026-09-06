@@ -31,6 +31,18 @@ EMOJI_POOL = [
     "\U0001F400", "\U0001F913", "\U0001F425", "\U0001F413",
 ]
 
+# And a colour, handed out the same way. Chosen to be told apart from
+# each other at forty pixels on a dark floor, and kept clear of the
+# colours the round itself uses — rose for a seeker, pale blue for a
+# frozen player, green for one standing on home — so that a personal
+# colour can never be mistaken for a rule.
+COLOR_POOL = [
+    "#ff8a3d", "#ffc94d", "#ffe98a", "#b5e853",
+    "#4fd07a", "#35d0c0", "#4da3ff", "#7b6cff",
+    "#b06cff", "#ff6cd4", "#c98a5e", "#dfe7f5",
+    "#8fa3b8", "#6f8f2a", "#2f6fbf",
+]
+
 # Which map the game loads. The server reads this file too, so client and
 # server cannot disagree about where the base is or what counts as a
 # hiding spot.

@@ -15,165 +15,189 @@
         </div>
     </header>
 
-    <section class="card">
-        <div class="card__header">
-            <h2 class="card__title">Players</h2>
-            <span id="playerCount" class="pill">0</span>
-        </div>
-
-        <ul id="playerList" class="players"></ul>
-        <p class="hint">Tap yourself to change your emoji. The host can
-           remove anybody else with the &times; on their row.</p>
-    </section>
-
-    <div id="emojiPicker" class="emoji-grid" hidden></div>
-
-    {# Bots, so a room of two is still a game. Host-only: everybody else
-       sees the count and nothing to press. #}
-    <section class="card" id="botCard">
-        <div class="card__header">
-            <h2 class="card__title">Bots</h2>
-            <span id="botCount" class="pill">0</span>
-        </div>
-
-        <div class="row">
-            <button type="button" id="removeBotButton" class="btn">&minus;</button>
-            <button type="button" id="addBotButton"
-                    class="btn btn--primary btn--grow">Add a bot</button>
-        </div>
-
-        <p class="hint">They search the house, run from you, break for the
-           base and stop to thaw a frozen friend. They see exactly what
-           you see &mdash; walls, darkness and all.</p>
-    </section>
-
-    {# Being the seeker used to be something that happened to you. #}
-    <section class="card">
-        <div class="card__header">
-            <h2 class="card__title">Who is it?</h2>
-        </div>
-
-        <button type="button" id="volunteerButton" class="volunteer"
-                aria-pressed="false">I'll be the seeker</button>
-
-        <p id="volunteerNote" class="hint"></p>
-    </section>
-
-    {# The mode. Rendered from the server's own list so the two cannot
-       drift, and shown to everybody: only the host can change it, but
-       everybody needs to know what they are about to play. #}
-    <section class="card">
-        <div class="card__header">
-            <h2 class="card__title">Mode</h2>
-        </div>
-
-        <div id="modePicker" class="modes">
-            {% for mode in modes %}
-            <button type="button" class="mode" data-mode="{{ mode.id }}">
-                <span class="mode__name">{{ mode.name }}</span>
-                <span class="mode__blurb">{{ mode.blurb }}</span>
-            </button>
-            {% endfor %}
-        </div>
-
-        <p id="modeNote" class="hint" hidden>The host picks the mode.</p>
-    </section>
-
-    {# The rules, where people can read them before they are dropped into
-       a dark house and have to guess. #}
-    <section class="card">
-        <div class="card__header">
-            <h2 class="card__title">How it goes</h2>
-        </div>
-
-        <p class="hint">The rules of Classic. Every mode changes some of
-           them — the card above says which.</p>
-
-        <ol class="rules">
-            <li>Everyone starts on the <strong class="rules__safe">home base</strong>
-                in the middle of the house.</li>
-            <li>One player is the <strong class="rules__seek">seeker</strong>.
-                They shut their eyes and count to twenty.</li>
-            <li>Everybody else runs and hides. Stay near the base and you
-                get moved out — that is not hiding.</li>
-            <li>Tuck into furniture to vanish. The seeker has to walk up
-                and search it to find you.</li>
-            <li>Tagged players <strong>freeze</strong> on the spot. Any
-                hider who is still free can <strong>run straight through
-                them</strong> to get them up again — no waiting about.</li>
-            <li>The base keeps you safe only while you are
-                <strong>stood on it</strong>. Step off and you are fair
-                game again — it is a place, not a prize.</li>
-            <li>The seeker cannot set foot on it at all. It is the one
-                patch of floor in the house that is yours.</li>
-            <li>Hiders win by getting <strong>all</strong> of themselves onto
-                the base at once. The seeker wins by freezing everyone, or by
-                running out the clock. Nothing else ends a round.</li>
-        </ol>
-    </section>
-
-    {# The controls, before people are dropped into a dark house rather
-       than after. Every row names both the key and the on-screen button,
-       because half a room is on a laptop and half is on a phone and
-       neither half can see the other's. #}
-    <section class="card">
-        <div class="card__header">
-            <h2 class="card__title">Controls</h2>
-        </div>
-
-        <ul class="controls-list">
-            <li>
-                <span class="controls-list__keys">
-                    <kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd>
-                    <span class="controls-list__or">or</span>
-                    <kbd class="kbd">&uarr;</kbd><kbd class="kbd">&larr;</kbd><kbd class="kbd">&darr;</kbd><kbd class="kbd">&rarr;</kbd>
-                </span>
-                <span><strong>Move.</strong> On a phone, the round pad on
-                      the left.</span>
-            </li>
-            <li>
-                <span class="controls-list__keys">
-                    <kbd class="kbd kbd--wide">Shift</kbd>
-                    <span class="controls-list__or">or</span>
-                    <kbd class="kbd">B</kbd>
-                </span>
-                <span><strong>Run.</strong> The bar at the bottom of the
-                      screen runs out, and empties into a walk until it
-                      comes back.</span>
-            </li>
-            <li>
-                <span class="controls-list__keys">
-                    <kbd class="kbd">Y</kbd>
-                    <span class="controls-list__or">or</span>
-                    <kbd class="kbd">Y</kbd>
-                </span>
-                <span><strong>Shout.</strong> The only thing in the house
-                      that goes through walls. Anyone near enough hears
-                      roughly which way you are &mdash; including the
-                      seeker.</span>
-            </li>
-        </ul>
-
-        <p class="hint">The second keycap on each row is the on-screen
-           button, bottom right, on a phone or tablet.</p>
-    </section>
-
-    <p id="messageBox" class="notice"></p>
-
-    {# Only the host sees the button; everyone else sees the note. #}
-    <button id="startButton" class="btn btn--primary btn--block" hidden>
-        Start game
-    </button>
-    <p id="waitingNote" class="hint" hidden>Waiting for the host to start…</p>
-
-    <section class="chat card">
-        <button id="chatToggle" class="chat__toggle" aria-expanded="true"
-                aria-controls="chatPanel">
-            <span>Chat</span>
-            <span class="chat__caret" aria-hidden="true">▼</span>
+    {# Four tabs rather than eight cards stacked down a phone screen.
+       Everything here is either something you set up once (your emoji,
+       the mode) or something you read once (the rules), and having all
+       of it on screen at the same time meant the thing you actually came
+       for was three scrolls away. #}
+    <nav class="tabs" role="tablist" id="lobbyTabs">
+        <button type="button" class="tab is-on" role="tab" data-tab="room"
+                aria-selected="true">Room</button>
+        <button type="button" class="tab" role="tab" data-tab="mode"
+                aria-selected="false">Mode</button>
+        <button type="button" class="tab" role="tab" data-tab="rules"
+                aria-selected="false">How to play</button>
+        <button type="button" class="tab" role="tab" data-tab="chat"
+                aria-selected="false">
+            Chat
+            {# Only worth a mark when there is something you have not read. #}
+            <span class="tab__dot" id="chatDot" hidden></span>
         </button>
+    </nav>
 
-        <div id="chatPanel" class="chat__panel">
+    {# ===== Room: who is here, who is it, and the bots ===== #}
+    <div class="tab-panel" data-panel="room">
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">Players</h2>
+                <span id="playerCount" class="pill">0</span>
+            </div>
+
+            <ul id="playerList" class="players"></ul>
+            <p class="hint">Tap yourself to change how you look. The host
+               can remove anybody else with the &times; on their row.</p>
+        </section>
+
+        {# Opened by tapping your own row, so it is not taking up space
+           for the rest of the round. #}
+        <div id="emojiPicker" class="picker" hidden>
+            <p class="picker__label">Your emoji</p>
+            <div id="emojiGrid" class="emoji-grid"></div>
+
+            <p class="picker__label">Your colour</p>
+            <div id="colorGrid" class="color-grid"></div>
+        </div>
+
+        {# Being the seeker used to be something that happened to you. #}
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">Who is it?</h2>
+            </div>
+
+            <button type="button" id="volunteerButton" class="volunteer"
+                    aria-pressed="false">I'll be the seeker</button>
+
+            <p id="volunteerNote" class="hint"></p>
+        </section>
+
+        {# Bots, so a room of two is still a game. Host-only: everybody
+           else sees the count and nothing to press. #}
+        <section class="card" id="botCard">
+            <div class="card__header">
+                <h2 class="card__title">Bots</h2>
+                <span id="botCount" class="pill">0</span>
+            </div>
+
+            <div class="row">
+                <button type="button" id="removeBotButton" class="btn">&minus;</button>
+                <button type="button" id="addBotButton"
+                        class="btn btn--primary btn--grow">Add a bot</button>
+            </div>
+
+            <p class="hint">They search the house, run from you, break for
+               the base and stop to thaw a frozen friend. They see exactly
+               what you see &mdash; walls, darkness and all.</p>
+        </section>
+    </div>
+
+    {# ===== Mode =====
+       Rendered from the server's own list so the two cannot drift, and
+       shown to everybody: only the host can change it, but everybody
+       needs to know what they are about to play. #}
+    <div class="tab-panel" data-panel="mode" hidden>
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">Mode</h2>
+            </div>
+
+            <div id="modePicker" class="modes">
+                {% for mode in modes %}
+                <button type="button" class="mode" data-mode="{{ mode.id }}">
+                    <span class="mode__name">{{ mode.name }}</span>
+                    <span class="mode__blurb">{{ mode.blurb }}</span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <p id="modeNote" class="hint" hidden>The host picks the mode.</p>
+        </section>
+    </div>
+
+    {# ===== How to play: the rules and the controls ===== #}
+    <div class="tab-panel" data-panel="rules" hidden>
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">How it goes</h2>
+            </div>
+
+            <p class="hint">The rules of Classic. Every mode changes some
+               of them — the Mode tab says which.</p>
+
+            <ol class="rules">
+                <li>Everyone starts on the <strong class="rules__safe">home base</strong>
+                    in the middle of the house. Not every mode has one —
+                    Sardines does without.</li>
+                <li>One player is the <strong class="rules__seek">seeker</strong>.
+                    They shut their eyes and count to twenty.</li>
+                <li>Everybody else runs and hides. Stay near the base and you
+                    get moved out — that is not hiding.</li>
+                <li>Tuck into furniture to vanish. The seeker has to walk up
+                    and search it to find you.</li>
+                <li>Tagged players <strong>freeze</strong> on the spot. Any
+                    hider who is still free can <strong>run straight through
+                    them</strong> to get them up again — no waiting about.</li>
+                <li>The base keeps you safe only while you are
+                    <strong>stood on it</strong>. Step off and you are fair
+                    game again — it is a place, not a prize.</li>
+                <li>The seeker cannot set foot on it, and cannot loiter in
+                    the room it is in either. Five seconds and the house
+                    puts them somewhere else.</li>
+                <li>Hiders win by getting <strong>all</strong> of themselves onto
+                    the base at once. The seeker wins by freezing everyone, or by
+                    running out the clock. Nothing else ends a round.</li>
+            </ol>
+        </section>
+
+        {# The controls, before people are dropped into a dark house
+           rather than after. Every row names both the key and the
+           on-screen button, because half a room is on a laptop and half
+           is on a phone and neither half can see the other's. #}
+        <section class="card">
+            <div class="card__header">
+                <h2 class="card__title">Controls</h2>
+            </div>
+
+            <ul class="controls-list">
+                <li>
+                    <span class="controls-list__keys">
+                        <kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd>
+                        <span class="controls-list__or">or</span>
+                        <kbd class="kbd">&uarr;</kbd><kbd class="kbd">&larr;</kbd><kbd class="kbd">&darr;</kbd><kbd class="kbd">&rarr;</kbd>
+                    </span>
+                    <span><strong>Move.</strong> On a phone, the round pad on
+                          the left.</span>
+                </li>
+                <li>
+                    <span class="controls-list__keys">
+                        <kbd class="kbd kbd--wide">Shift</kbd>
+                        <span class="controls-list__or">or</span>
+                        <kbd class="kbd">B</kbd>
+                    </span>
+                    <span><strong>Run.</strong> The bar at the bottom of the
+                          screen runs out, and empties into a walk until it
+                          comes back.</span>
+                </li>
+                <li>
+                    <span class="controls-list__keys">
+                        <kbd class="kbd">Y</kbd>
+                        <span class="controls-list__or">or</span>
+                        <kbd class="kbd">Y</kbd>
+                    </span>
+                    <span><strong>Shout.</strong> The only thing in the house
+                          that goes through walls. Anyone near enough hears
+                          roughly which way you are &mdash; including the
+                          seeker.</span>
+                </li>
+            </ul>
+
+            <p class="hint">The second keycap on each row is the on-screen
+               button, bottom right, on a phone or tablet.</p>
+        </section>
+    </div>
+
+    {# ===== Chat ===== #}
+    <div class="tab-panel" data-panel="chat" hidden>
+        <section class="chat card">
             <div id="chatBox" class="chat__log"></div>
 
             <form id="chatForm" class="chat__form">
@@ -181,8 +205,17 @@
                        maxlength="200" autocomplete="off">
                 <button type="submit" class="btn">Send</button>
             </form>
-        </div>
-    </section>
+        </section>
+    </div>
+
+    {# Outside the tabs on purpose: whichever one you are reading, the
+       round is what you are here for. #}
+    <p id="messageBox" class="notice"></p>
+
+    <button id="startButton" class="btn btn--primary btn--block" hidden>
+        Start game
+    </button>
+    <p id="waitingNote" class="hint" hidden>Waiting for the host to start…</p>
 </main>
 {% endblock %}
 

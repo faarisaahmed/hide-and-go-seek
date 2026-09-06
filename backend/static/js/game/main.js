@@ -31,6 +31,7 @@ const els = {
     canvas: document.getElementById("gameCanvas"),
     minimap: document.getElementById("minimap"),
     minimapPanel: document.getElementById("minimapPanel"),
+    minimapHomeKey: document.getElementById("minimapHomeKey"),
     banner: document.getElementById("connectionBanner"),
     controls: document.getElementById("controls"),
 };
@@ -48,6 +49,9 @@ async function start() {
         size: PLAYER_SIZE,
         name: session.name,
         emoji: "",
+        // Both filled in by the server on joining: the emoji and colour
+        // are chosen in the lobby and the world is where they show up.
+        color: "",
         role: null,
         state: "free",
         // Which way we are pointing, in radians, from the last direction
@@ -161,7 +165,12 @@ async function start() {
         // one thing they could still study.
         const blind = phase === "counting" && localPlayer.role === "tagger";
         els.minimapPanel.hidden = blind;
-        if (!blind) minimap.draw({ map, localPlayer });
+        if (!blind) {
+            const hasBase = getRound().rules.hasBase;
+            minimap.draw({ map, localPlayer, hasBase });
+            // No point in a key for something that is not on the map.
+            els.minimapHomeKey.hidden = !hasBase;
+        }
         drawHud({ map, localPlayer, myName: session.name });
 
         requestAnimationFrame(frame);

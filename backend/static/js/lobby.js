@@ -9,6 +9,7 @@
 
 import {
     changeBots,
+    changeColor,
     changeEmoji,
     fetchRoom,
     kickPlayer,
@@ -23,6 +24,16 @@ import { goHome, requireSession } from "./session.js";
 const EMOJIS = [
     "😀", "😃", "😄", "😁", "😆", "😊", "🙂", "🥲", "😢", "😎",
     "🤠", "🥳", "😺", "🐸", "🌺", "🐀", "🤓", "🐥", "🐓",
+];
+
+/* And colours, in step with COLOR_POOL the same way. This is the one
+ * that shows up in the house: your square is painted in it, which is how
+ * "which of these is Bob" has an answer at forty pixels in the dark. */
+const COLORS = [
+    "#ff8a3d", "#ffc94d", "#ffe98a", "#b5e853",
+    "#4fd07a", "#35d0c0", "#4da3ff", "#7b6cff",
+    "#b06cff", "#ff6cd4", "#c98a5e", "#dfe7f5",
+    "#8fa3b8", "#6f8f2a", "#2f6fbf",
 ];
 
 const POLL_INTERVAL_MS = 15000;
@@ -45,6 +56,10 @@ const els = {
     startButton: document.getElementById("startButton"),
     waitingNote: document.getElementById("waitingNote"),
     emojiPicker: document.getElementById("emojiPicker"),
+    emojiGrid: document.getElementById("emojiGrid"),
+    colorGrid: document.getElementById("colorGrid"),
+    tabs: document.getElementById("lobbyTabs"),
+    chatDot: document.getElementById("chatDot"),
     modePicker: document.getElementById("modePicker"),
     modeNote: document.getElementById("modeNote"),
     volunteerButton: document.getElementById("volunteerButton"),
@@ -54,8 +69,6 @@ const els = {
     addBotButton: document.getElementById("addBotButton"),
     removeBotButton: document.getElementById("removeBotButton"),
     message: document.getElementById("messageBox"),
-    chatToggle: document.getElementById("chatToggle"),
-    chatPanel: document.getElementById("chatPanel"),
     chatBox: document.getElementById("chatBox"),
     chatForm: document.getElementById("chatForm"),
     chatInput: document.getElementById("chatInput"),
@@ -73,6 +86,9 @@ function playerRow(player) {
     const emoji = document.createElement("span");
     emoji.className = "player__emoji";
     emoji.textContent = player.emoji;
+    // Their square in the house is this colour, so their row is too.
+    emoji.style.background = player.color;
+    emoji.style.borderColor = player.color;
 
     const name = document.createElement("span");
     name.className = "player__name";
@@ -311,6 +327,7 @@ function renderRoom(room) {
     // After renderPlayers, which is what works out whether we are the host.
     renderModes(room.mode);
     renderChat(room.chat);
+    markUnread(room.chat);
 
     // Keep an open picker in step with who has taken what.
     if (!els.emojiPicker.hidden) {
@@ -326,35 +343,56 @@ async function refresh() {
  * Emoji picker
  * ========================= */
 
-function renderEmojiPicker() {
-    const players = currentRoom ? currentRoom.players : [];
-    const mine = players.find((p) => p.name === session.name)?.emoji;
-    const taken = new Set(players.map((p) => p.emoji));
-
+/*
+ * Both pickers work the same way and for the same reason: what makes a
+ * choice worth anything is that nobody else in the room has it, so taken
+ * options are shown greyed rather than hidden. Hiding them would make
+ * the grid reshuffle every time somebody else picked something, and you
+ * would tap the wrong one.
+ */
+function renderPicker(grid, values, className, mine, taken, choose, paint) {
     const options = document.createDocumentFragment();
 
-    for (const emoji of EMOJIS) {
+    for (const value of values) {
         const option = document.createElement("button");
         option.type = "button";
-        option.className = "emoji-option";
-        option.textContent = emoji;
+        option.className = className;
+        paint(option, value);
 
-        if (emoji === mine) {
-            option.classList.add("emoji-option--mine");
+        if (value === mine) {
+            option.classList.add(`${className}--mine`);
             option.disabled = true;
-        } else if (taken.has(emoji)) {
-            // Show it greyed rather than hiding it, so the grid does not
-            // reshuffle every time somebody picks something.
-            option.classList.add("emoji-option--taken");
+        } else if (taken.has(value)) {
+            option.classList.add(`${className}--taken`);
             option.disabled = true;
         } else {
-            option.addEventListener("click", () => pickEmoji(emoji));
+            option.addEventListener("click", () => choose(value));
         }
 
         options.appendChild(option);
     }
 
-    els.emojiPicker.replaceChildren(options);
+    grid.replaceChildren(options);
+}
+
+function renderEmojiPicker() {
+    const players = currentRoom ? currentRoom.players : [];
+    const me = players.find((p) => p.name === session.name);
+
+    renderPicker(
+        els.emojiGrid, EMOJIS, "emoji-option",
+        me?.emoji, new Set(players.map((p) => p.emoji)),
+        pickEmoji, (option, emoji) => { option.textContent = emoji; },
+    );
+
+    renderPicker(
+        els.colorGrid, COLORS, "color-option",
+        me?.color, new Set(players.map((p) => p.color)),
+        pickColor, (option, color) => {
+            option.style.background = color;
+            option.title = "Your colour in the house";
+        },
+    );
 }
 
 function toggleEmojiPicker() {
@@ -366,15 +404,15 @@ function toggleEmojiPicker() {
 
 async function pickEmoji(emoji) {
     const result = await changeEmoji(session.code, session.name, emoji);
-
-    if (!result.success) {
-        els.message.textContent = result.message || "Already taken!";
-        return;
-    }
-
-    els.message.textContent = "";
-    els.emojiPicker.hidden = true;
+    els.message.textContent = result.success
+        ? "" : (result.message || "Already taken!");
     // The server pushes room_updated to everyone, including us.
+}
+
+async function pickColor(color) {
+    const result = await changeColor(session.code, session.name, color);
+    els.message.textContent = result.success
+        ? "" : (result.message || "Already taken!");
 }
 
 /* =========================
@@ -414,9 +452,46 @@ async function onSendChat(event) {
     await sendChat(session.code, session.name, message);
 }
 
-function toggleChat() {
-    const collapsed = els.chatPanel.classList.toggle("is-collapsed");
-    els.chatToggle.setAttribute("aria-expanded", String(!collapsed));
+/* =========================
+ * Tabs
+ * ========================= */
+
+/* How many messages we had last time the chat tab was looked at, so the
+ * mark on the tab means "something you have not read" rather than
+ * "somebody has ever spoken". */
+let chatSeen = 0;
+let activeTab = "room";
+
+function showTab(name) {
+    activeTab = name;
+
+    for (const tab of els.tabs.querySelectorAll(".tab")) {
+        const on = tab.dataset.tab === name;
+        tab.classList.toggle("is-on", on);
+        tab.setAttribute("aria-selected", String(on));
+    }
+
+    for (const panel of document.querySelectorAll(".tab-panel")) {
+        panel.hidden = panel.dataset.panel !== name;
+    }
+
+    if (name === "chat") {
+        chatSeen = currentRoom ? currentRoom.chat.length : 0;
+        els.chatDot.hidden = true;
+        // A chat you have opened is a chat you meant to read, and the
+        // last line is the one you want.
+        els.chatBox.scrollTop = els.chatBox.scrollHeight;
+    }
+}
+
+function markUnread(messages) {
+    if (activeTab === "chat") {
+        chatSeen = messages.length;
+        els.chatDot.hidden = true;
+        return;
+    }
+
+    els.chatDot.hidden = messages.length <= chatSeen;
 }
 
 /* =========================
@@ -429,7 +504,10 @@ function start() {
     els.homeButton.addEventListener("click", goHome);
     els.roomCode.addEventListener("click", copyRoomCode);
     els.chatForm.addEventListener("submit", onSendChat);
-    els.chatToggle.addEventListener("click", toggleChat);
+
+    for (const tab of els.tabs.querySelectorAll(".tab")) {
+        tab.addEventListener("click", () => showTab(tab.dataset.tab));
+    }
 
     for (const button of els.modePicker.querySelectorAll(".mode")) {
         button.addEventListener("click", () => pickMode(button.dataset.mode));

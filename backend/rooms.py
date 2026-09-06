@@ -163,10 +163,21 @@ def _free_emoji(room):
     return random.choice(config.EMOJI_POOL)
 
 
+def _free_color(room):
+    """Same, for colours. Two players the same colour is two players you
+    cannot tell apart at a glance, which is the whole job."""
+    taken = {p["color"] for p in room["players"].values()}
+    for color in config.COLOR_POOL:
+        if color not in taken:
+            return color
+    return random.choice(config.COLOR_POOL)
+
+
 def _new_player(room, name, is_host, is_bot=False):
     return {
         "name": name,
         "emoji": _free_emoji(room),
+        "color": _free_color(room),
         "isHost": is_host,
         "x": config.SPAWN_X,
         "y": config.SPAWN_Y,
@@ -265,6 +276,7 @@ def public_view(code):
             {
                 "name": p["name"],
                 "emoji": p["emoji"],
+                "color": p["color"],
                 "isHost": p["isHost"],
                 "connected": p["sid"] is not None,
                 "volunteer": p["volunteer"],
@@ -429,6 +441,33 @@ def remove_player(code, name):
         for other in room["players"].values():
             other["seen_by"].discard(player["sid"])
 
+    return True, None
+
+
+def set_color(code, name, color):
+    """Give a player a new colour. Returns ``(ok, message)``.
+
+    The same shape as :func:`set_emoji`, and for the same reason: what
+    makes a colour worth having is that nobody else in the room has it.
+    """
+    room = get(code)
+    if room is None:
+        return False, "Room not found"
+
+    if color not in config.COLOR_POOL:
+        return False, "That is not one of the available colours"
+
+    player = room["players"].get(_key(name)) if isinstance(name, str) else None
+    if player is None:
+        return False, "You are not in this room"
+
+    if player["color"] == color:
+        return True, None  # already theirs; nothing to do
+
+    if any(p["color"] == color for p in room["players"].values()):
+        return False, "Colour already taken!"
+
+    player["color"] = color
     return True, None
 
 

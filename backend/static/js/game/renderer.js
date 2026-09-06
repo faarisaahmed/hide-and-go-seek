@@ -433,7 +433,23 @@ export function createRenderer(canvas) {
 
     /* ===== Players ===== */
 
-    function colorFor(record) {
+    /*
+     * Two colours per player, and they answer different questions.
+     *
+     * The fill is theirs: the one they picked in the lobby, so "which of
+     * these squares is Bob" has an answer at a glance. The ring is the
+     * round's: rose for a seeker, pale for somebody frozen, green for
+     * somebody standing on home. Roles used to be the fill, which meant
+     * personalising a player would have hidden the one thing you have to
+     * read instantly — so the ring took the job instead, and it is drawn
+     * thick enough to read at the edge of the light.
+     */
+    function fillFor(player, record) {
+        return player.color || (record?.role === "tagger"
+            ? COLORS.tagger : COLORS.hider);
+    }
+
+    function roleColorFor(record) {
         if (!record) return COLORS.hider;
         if (record.state === "frozen") return COLORS.frozen;
         if (record.state === "safe") return COLORS.safe;
@@ -476,8 +492,8 @@ export function createRenderer(canvas) {
         ctx.restore();
     }
 
-    /* One player: their square, their lobby emoji, their name, and
-     * whatever the round has done to them. */
+    /* One player: their square in their own colour, ringed in whatever
+     * the round has made of them, their lobby emoji, and their name. */
     function drawPlayer(player, size, { isYou = false } = {}) {
         const record = playerNamed(player.name);
         const x = screenX(player.x);
@@ -486,15 +502,24 @@ export function createRenderer(canvas) {
         ctx.save();
         if (record && record.state === "frozen") ctx.globalAlpha = 0.75;
 
-        ctx.fillStyle = colorFor(record);
+        ctx.fillStyle = fillFor(player, record);
         pathRect(ctx, x, y, size, size, 8);
         ctx.fill();
 
-        // Your own square gets a bright outline, so you never lose
-        // yourself among four other blue squares.
+        // The round's answer, over the player's own. Inset by half the
+        // line width so the ring sits on the square rather than growing
+        // it, which would make a seeker read as physically bigger.
+        ctx.strokeStyle = roleColorFor(record);
+        ctx.lineWidth = 4;
+        pathRect(ctx, x + 2, y + 2, size - 4, size - 4, 6);
+        ctx.stroke();
+
+        // And your own square gets a bright hairline inside that, so you
+        // never lose yourself in a crowd.
         if (isYou) {
             ctx.strokeStyle = COLORS.you;
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 1.5;
+            pathRect(ctx, x + 5, y + 5, size - 10, size - 10, 4);
             ctx.stroke();
         }
         ctx.restore();
@@ -509,13 +534,13 @@ export function createRenderer(canvas) {
         const marker = markerFor(record);
         if (marker) {
             ctx.font = "bold 16px Arial";
-            ctx.fillStyle = colorFor(record);
+            ctx.fillStyle = roleColorFor(record);
             ctx.textAlign = "center";
             ctx.textBaseline = "alphabetic";
             ctx.fillText(marker, x + size / 2, y - 6);
         }
 
-        ctx.fillStyle = COLORS.nameTag;
+        ctx.fillStyle = player.color || COLORS.nameTag;
         ctx.font = NAME_TAG_FONT;
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
@@ -793,7 +818,12 @@ export function createRenderer(canvas) {
 
         drawFurniture(map.decor, COLORS.decor);
         drawFurniture(map.hideSpots, COLORS.hide);
-        drawBase(map, now, baseIsWall(localPlayer.role));
+        // Only in the modes that have one. A glowing square on the floor
+        // that does nothing is worse than no square at all: people run
+        // to it, and nothing happens when they get there.
+        if (round.rules.hasBase) {
+            drawBase(map, now, baseIsWall(localPlayer.role));
+        }
         drawFurniture(map.solidFurniture, COLORS.solid);
 
         drawRoomLabels(map);

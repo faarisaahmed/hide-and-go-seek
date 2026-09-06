@@ -1145,7 +1145,8 @@ def test_public_state_reports_the_round_without_leaking_positions(clock):
 
     for player in state["players"]:
         assert set(player) == {
-            "name", "emoji", "role", "state", "isHost", "connected", "inGame",
+            "name", "emoji", "color", "role", "state", "isHost", "connected",
+            "inGame",
         }
 
 

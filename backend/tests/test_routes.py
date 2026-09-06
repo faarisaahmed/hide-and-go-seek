@@ -54,6 +54,7 @@ def test_room_info(client):
     assert body["players"][0] == {
         "name": "Alice",
         "emoji": config.EMOJI_POOL[0],
+        "color": config.COLOR_POOL[0],
         "isHost": True,
         "connected": False,
         "volunteer": False,
@@ -70,8 +71,8 @@ def test_room_info_does_not_leak_socket_ids_or_positions(client):
     rooms.enter_game("secret-sid", code, "Alice", "house1")
 
     player = client.get(f"/room/{code}").get_json()["players"][0]
-    assert set(player) == {"name", "emoji", "isHost", "connected",
-                           "volunteer", "bot"}
+    assert set(player) == {"name", "emoji", "color", "isHost",
+                           "connected", "volunteer", "bot"}
 
 
 def test_emoji_is_returned_as_a_character_not_an_escape(client):

@@ -136,6 +136,29 @@ it came from, a line naming who and how far, and a tone whose volume is
 the distance. A frozen player can still shout, which is the whole reason
 a frozen player is worth going back for.
 
+### Everyone looks like themselves
+
+Pick an emoji and a colour in the lobby; both are first-come, so nobody
+in a room shares either. The colour is the one that matters, because it
+is what your square is painted in.
+
+That took the fill, so the *round* — which side you are on, whether you
+are frozen, whether you are stood on home — moved to a thick ring around
+the square. It has to be readable in a fraction of a second at the edge
+of the light, and a ring is: rose for a seeker, pale for frozen, green
+for home. The pool is kept clear of those three colours on purpose, so a
+personal choice can never be mistaken for a rule.
+
+### Not every mode has a base
+
+`has_base` is a mode's answer to whether the house has a home at all. In
+Sardines it does not: there is nothing to run to, so nothing is drawn on
+the floor, the minimap loses its Home key, and the compass and the
+seeker's invisible wall go with it. A glowing square that does nothing is
+worse than no square — people run at it, and nothing happens when they
+arrive. The registry refuses to build a mode that makes home safe without
+having one.
+
 ### Bots
 
 A room of two is a thin game, and "wait until more friends are free" is
@@ -293,10 +316,14 @@ look up existing in the page they run on.
 
 1. **Home** (`/`) — enter a display name, then create a room or join one
    with its 4-digit code.
-2. **Lobby** (`/room_page`) — see who's in the room, pick an emoji, chat,
-   volunteer to be the seeker, add bots to fill the house out,
-   read the rules and the controls. The host picks the mode and gets a
-   **Start game** button.
+2. **Lobby** (`/room_page`) — four tabs, because the lobby used to be
+   eight cards stacked down a phone screen and the thing you had come
+   back for was always three scrolls away. **Room** is who is here, your
+   emoji and colour, whether you want to be the seeker, and the bots.
+   **Mode** is the mode. **How to play** is the rules and the controls.
+   **Chat** is chat, with a mark on the tab when there is something you
+   have not read. The start button sits outside all of them, since
+   whichever tab you are on, the round is what you are there for.
 3. **Game** (`/game_page`) — WASD/arrows to move, Shift to run, Y to
    shout; or the joystick and the labelled **B** and **Y** buttons on
    touch devices. The keys stay on screen for the whole round and the

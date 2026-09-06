@@ -51,6 +51,7 @@ export function join({ code, name, localPlayer }) {
             localPlayer.x = data.you.x;
             localPlayer.y = data.you.y;
             localPlayer.emoji = data.you.emoji;
+            localPlayer.color = data.you.color;
 
             for (const player of data.players) {
                 remotePlayers[player.id] = { ...player, tx: player.x, ty: player.y };

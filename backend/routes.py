@@ -92,6 +92,19 @@ def change_emoji():
     return jsonify({"success": True})
 
 
+@bp.route("/change_color", methods=["POST"])
+def change_color():
+    data = _body()
+    code = data.get("code")
+
+    ok, message = rooms.set_color(code, data.get("name"), data.get("color"))
+    if not ok:
+        return jsonify({"success": False, "message": message})
+
+    _push_room(code)
+    return jsonify({"success": True})
+
+
 @bp.route("/set_mode", methods=["POST"])
 def set_mode():
     """The host chose a game mode.

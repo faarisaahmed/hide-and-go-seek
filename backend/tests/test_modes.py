@@ -25,8 +25,9 @@ def test_every_mode_answers_every_question():
     """
     for mode_id, rules in modes.MODES.items():
         for key in ["id", "name", "blurb", "seekers", "on_tag", "rescues",
-                    "hiding_conceals", "home_is_safety", "vision_radius",
-                    "cone_degrees", "cone_reach", "round_seconds"]:
+                    "hiding_conceals", "has_base", "home_is_safety",
+                    "vision_radius", "cone_degrees", "cone_reach",
+                    "round_seconds"]:
             assert key in rules, f"{mode_id} says nothing about {key}"
 
         assert rules["id"] == mode_id
@@ -34,6 +35,21 @@ def test_every_mode_answers_every_question():
         assert rules["on_tag"] in ("freeze", "convert", "recruit")
         assert rules["vision_radius"] > 0
         assert rules["round_seconds"] > 0
+
+
+def test_a_mode_that_has_no_base_does_not_make_home_safe():
+    """Safety needs somewhere to be safe. The registry refuses to build a
+    mode that says otherwise, so this is really a check that the refusal
+    is still wired up."""
+    for mode_id, rules in modes.MODES.items():
+        if rules["home_is_safety"]:
+            assert rules["has_base"], f"{mode_id} has safety without a home"
+
+
+def test_at_least_one_mode_does_without_a_base_entirely():
+    """A base drawn on the floor that does nothing is worse than none:
+    people run to it and nothing happens when they arrive."""
+    assert any(not rules["has_base"] for rules in modes.MODES.values())
 
 
 def test_the_default_mode_is_a_real_one():
@@ -766,3 +782,6 @@ def test_the_client_is_told_who_was_singled_out(clock):
     assert state["chosen"] == hider["name"]
     assert state["tagger"] is None, "there is no single seeker in this one"
     assert state["rules"]["homeIsSafety"] is False
+    # And the client is told not to draw one at all, since a square that
+    # does nothing is a square people will still run at.
+    assert state["rules"]["hasBase"] is False

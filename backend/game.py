@@ -917,6 +917,7 @@ def public_state(code):
         {
             "name": p["name"],
             "emoji": p["emoji"],
+            "color": p["color"],
             "role": p["role"],
             "state": p["state"],
             "isHost": p["isHost"],
@@ -941,6 +942,7 @@ def public_state(code):
         "rules": {
             "visionRadius": rules["vision_radius"],
             "hidingConceals": rules["hiding_conceals"],
+            "hasBase": rules["has_base"],
             "homeIsSafety": rules["home_is_safety"],
             "rescues": rules["rescues"],
             "coneDegrees": rules["cone_degrees"],
