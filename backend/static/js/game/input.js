@@ -1,25 +1,59 @@
 /*
- * Input: keyboard (WASD / arrows, Shift to sprint) and the on-screen
- * joystick plus B button for touch.
+ * Input: keyboard (WASD / arrows, Shift to run, Y to shout) and the
+ * on-screen joystick with B and Y for touch.
  *
- * This module reports *intent* only — a direction and whether sprint is
- * held. It does not know the player's speed, the map, or how long the
- * frame was; the game loop turns that intent into a distance.
+ * This module reports *intent* only — a direction, whether run is held,
+ * and whether a shout was asked for since the last frame. It does not
+ * know the player's speed, the map, or how long the frame was; the game
+ * loop turns that intent into a distance and a message.
+ *
+ * Movement is a *state* (held or not) and a shout is an *event* (it
+ * happened once), which is why one is read every frame and the other is
+ * taken exactly once by takeShout.
  */
 
 import { JOYSTICK_DEADZONE } from "./config.js";
+import { unlockAudio } from "./shouts.js";
 
 const keys = {};
 
 const joystick = { x: 0, y: 0 };
 let joystickSprinting = false;
 
+/* Set when the shout key or button goes down, cleared by whoever reads
+ * it. Latched rather than polled, so a press between two frames is not
+ * quietly dropped. */
+let shoutQueued = false;
+
+function askToShout() {
+    shoutQueued = true;
+    // Browsers will not start an audio context until the player has
+    // touched something. Pressing the noise button is as good a moment
+    // as any, and it means the first shout is audible rather than the
+    // second.
+    unlockAudio();
+}
+
+/* Whether a shout was asked for since this was last called. */
+export function takeShout() {
+    const asked = shoutQueued;
+    shoutQueued = false;
+    return asked;
+}
+
 /* =========================
  * Keyboard
  * ========================= */
 
 window.addEventListener("keydown", (event) => {
-    keys[event.key.toLowerCase()] = true;
+    const key = event.key.toLowerCase();
+
+    // On the way down and only on the first one, so holding Y is one
+    // shout rather than a siren. The server has a cooldown of its own
+    // regardless; this is so the button feels like a button.
+    if (key === "y" && !keys[key]) askToShout();
+
+    keys[key] = true;
 });
 
 window.addEventListener("keyup", (event) => {
@@ -41,6 +75,7 @@ export function initTouchControls() {
     const pad = document.getElementById("joystick");
     const knob = document.getElementById("stick");
     const sprintButton = document.getElementById("btnB");
+    const shoutButton = document.getElementById("btnY");
 
     let dragging = false;
 
@@ -107,6 +142,14 @@ export function initTouchControls() {
     sprintButton.addEventListener("touchcancel", onSprintEnd);
     sprintButton.addEventListener("mouseup", onSprintEnd);
     sprintButton.addEventListener("mouseleave", onSprintEnd);
+
+    // Y shouts. A tap rather than a hold, so it only needs the down.
+    const onShout = (event) => {
+        if (event.cancelable) event.preventDefault();
+        askToShout();
+    };
+    shoutButton.addEventListener("touchstart", onShout, { passive: false });
+    shoutButton.addEventListener("mousedown", onShout);
 }
 
 /* =========================
@@ -119,8 +162,8 @@ function isDown(...names) {
 
 /*
  * Where the player wants to go, as a vector no longer than 1, plus
- * whether sprint is held. A partly tilted joystick gives a shorter
- * vector, so it moves proportionally slower.
+ * whether run is held. A partly tilted joystick gives a shorter vector,
+ * so it moves proportionally slower.
  */
 export function readInput() {
     const sprinting = isDown("shift") || joystickSprinting;

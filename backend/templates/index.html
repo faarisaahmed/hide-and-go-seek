@@ -33,6 +33,45 @@
         </div>
     </section>
 
+    {# The controls, on the very first screen. People used to arrive in a
+       dark house not knowing they could run, let alone shout. #}
+    <section class="card">
+        <div class="card__header">
+            <h2 class="card__title">Controls</h2>
+        </div>
+
+        <ul class="controls-list">
+            <li>
+                <span class="controls-list__keys">
+                    <kbd class="kbd">W</kbd><kbd class="kbd">A</kbd><kbd class="kbd">S</kbd><kbd class="kbd">D</kbd>
+                    <span class="controls-list__or">or</span>
+                    <kbd class="kbd">&uarr;</kbd><kbd class="kbd">&larr;</kbd><kbd class="kbd">&darr;</kbd><kbd class="kbd">&rarr;</kbd>
+                </span>
+                <span>Move</span>
+            </li>
+            <li>
+                <span class="controls-list__keys">
+                    <kbd class="kbd kbd--wide">Shift</kbd>
+                    <span class="controls-list__or">or</span>
+                    <kbd class="kbd">B</kbd>
+                </span>
+                <span>Run, until the stamina bar runs out</span>
+            </li>
+            <li>
+                <span class="controls-list__keys">
+                    <kbd class="kbd">Y</kbd>
+                    <span class="controls-list__or">or</span>
+                    <kbd class="kbd">Y</kbd>
+                </span>
+                <span>Shout &mdash; heard through walls, by everybody
+                      nearby</span>
+            </li>
+        </ul>
+
+        <p class="hint">Keyboard on a computer; the joystick and the
+           lettered buttons on a phone.</p>
+    </section>
+
     <p id="messageBox" class="notice"></p>
 </main>
 {% endblock %}

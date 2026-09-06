@@ -139,6 +139,10 @@ export const COLORS = {
     safe: "#5ee6a8",
     you: "#ffffff",          /* ring around your own square */
 
+    /* A shout you heard. Warm, so it is nobody's team colour: what it
+     * tells you is where a noise came from, not whose side made it. */
+    shout: "#ffd479",
+
     nameTag: "#dce6fa",
     roomLabel: "rgba(150, 178, 224, 0.5)",
 
@@ -185,6 +189,15 @@ export const NAME_TAG_OFFSET = 14;
 /* Walls this far outside the viewport are still drawn, so one that is
  * partly on screen does not pop in at the edge. */
 export const CULL_MARGIN = 64;
+
+/* ===== Shouting =====
+ *
+ * How long a shout stays on the screen after you hear it: long enough to
+ * read the direction and turn, short enough that a busy house does not
+ * fill up with old noise. The server's own numbers — how far a shout
+ * carries, and the cooldown — are its business, since it is the one
+ * deciding who hears what. */
+export const SHOUT_FADE_SECONDS = 2.4;
 
 /* ===== Minimap =====
  *

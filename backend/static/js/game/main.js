@@ -18,10 +18,10 @@ import {
     SPRINT_MULTIPLIER,
 } from "./config.js";
 import { drawHud, initHud, showProblem } from "./hud.js";
-import { initTouchControls, readInput } from "./input.js";
+import { initTouchControls, readInput, takeShout } from "./input.js";
 import { loadMap } from "./map_loader.js";
 import { createMinimap } from "./minimap.js";
-import { getRemotePlayers, interpolateRemotes, join } from "./network.js";
+import { getRemotePlayers, interpolateRemotes, join, shout } from "./network.js";
 import { moveWithCollision } from "./physics.js";
 import { createRenderer } from "./renderer.js";
 import { baseIsWall, canMove, getRound, playerNamed } from "./round.js";
@@ -116,6 +116,11 @@ async function start() {
             lastPhase = phase;
             resetStamina();
         }
+
+        // Read every frame whether we can move or not: shouting is the
+        // one thing a frozen player can still do, and "I am over here"
+        // is the most useful thing they have to say.
+        if (takeShout()) shout(socket);
 
         const allowed = canMove(localPlayer.role, localPlayer.state);
         const { x, y, sprinting } =

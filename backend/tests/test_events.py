@@ -584,3 +584,151 @@ def test_backing_out_to_the_lobby_ends_a_finished_round(client, sock):
     a = sock()
     a.emit("join_lobby", {"code": code, "name": "Alice"})
     assert game.state(code)["phase"] == "lobby"
+
+
+# ---------------------------------------------------------------------------
+# Shouting
+# ---------------------------------------------------------------------------
+#
+# The one signal that goes through walls, which is why it is worth a
+# button and why it costs something: the seeker is in earshot too. What
+# a listener gets is a bearing and a word for distance, never a position.
+
+def test_a_shout_reaches_someone_in_earshot(client, sock, monkeypatch):
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    players = rooms.get(code)["players"]
+    players["alice"]["x"], players["alice"]["y"] = 300, 300
+    players["bob"]["x"], players["bob"]["y"] = 500, 300
+    for c in clients.values():
+        c.get_received()
+
+    clients["Bob"].emit("shout", {})
+
+    heard = payloads(clients["Alice"], "shout_heard")[-1]
+    assert heard["name"] == "Bob"
+    assert heard["nearness"] == "close"
+    assert set(heard) == {"name", "emoji", "role", "state",
+                          "bearing", "nearness"}
+
+
+def test_a_shout_carries_through_a_wall(client, sock, monkeypatch):
+    """Sight does not, and that is the whole point of shouting."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    players = rooms.get(code)["players"]
+    # Either side of the living room / kitchen wall, above the doorway.
+    players["alice"]["x"], players["alice"]["y"] = 560, 200
+    players["bob"]["x"], players["bob"]["y"] = 760, 200
+    room = rooms.get(code)
+    assert not game.can_see(room, players["alice"], players["bob"])
+
+    for c in clients.values():
+        c.get_received()
+    clients["Bob"].emit("shout", {})
+
+    assert payloads(clients["Alice"], "shout_heard")
+
+
+def test_a_shout_never_carries_a_position(client, sock, monkeypatch):
+    """Otherwise it would undo the whole reason positions are filtered."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    players = rooms.get(code)["players"]
+    players["alice"]["x"], players["alice"]["y"] = 300, 300
+    players["bob"]["x"], players["bob"]["y"] = 500, 320
+    for c in clients.values():
+        c.get_received()
+
+    clients["Bob"].emit("shout", {})
+
+    heard = payloads(clients["Alice"], "shout_heard")[-1]
+    assert "x" not in heard and "y" not in heard
+
+    # And the bearing is rounded off, so it points at a room rather than
+    # at a player.
+    import math
+    step = math.radians(config.SHOUT_BEARING_DEGREES)
+    assert abs(heard["bearing"] / step - round(heard["bearing"] / step)) < 1e-9
+
+
+def test_a_shout_from_the_far_end_of_the_house_is_not_heard(client, sock, monkeypatch):
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    players = rooms.get(code)["players"]
+    players["alice"]["x"], players["alice"]["y"] = 200, 200
+    players["bob"]["x"], players["bob"]["y"] = 2400, 1500
+    for c in clients.values():
+        c.get_received()
+
+    clients["Bob"].emit("shout", {})
+    assert not events(clients["Alice"], "shout_heard")
+
+
+def test_the_shouter_hears_their_own_button(client, sock, monkeypatch):
+    """So it does something when you are alone at the far end."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    for c in clients.values():
+        c.get_received()
+    clients["Bob"].emit("shout", {})
+
+    assert events(clients["Bob"], "shout_made")
+    assert not events(clients["Bob"], "shout_heard"), "not from yourself"
+
+
+def test_holding_the_key_down_is_not_a_siren(client, sock, monkeypatch):
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    held = start_hunting(code, monkeypatch)
+
+    players = rooms.get(code)["players"]
+    players["alice"]["x"], players["alice"]["y"] = 300, 300
+    players["bob"]["x"], players["bob"]["y"] = 400, 300
+    for c in clients.values():
+        c.get_received()
+
+    for _ in range(5):
+        clients["Bob"].emit("shout", {})
+    assert len(payloads(clients["Alice"], "shout_heard")) == 1
+
+    # Once the cooldown is up they can say something else.
+    held["now"] += config.SHOUT_COOLDOWN_SECONDS + 0.1
+    clients["Alice"].get_received()
+    clients["Bob"].emit("shout", {})
+    assert payloads(clients["Alice"], "shout_heard")
+
+
+def test_a_frozen_player_can_still_shout(client, sock, monkeypatch):
+    """"I am over here and I need somebody" is the most useful thing a
+    tagged player has to say."""
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    start_hunting(code, monkeypatch)
+
+    players = rooms.get(code)["players"]
+    seeker_key = game.state(code)["tagger"]
+    hider_key = next(k for k in players if k != seeker_key)
+    players[hider_key]["state"] = "frozen"
+    players[hider_key]["x"], players[hider_key]["y"] = 300, 300
+    players[seeker_key]["x"], players[seeker_key]["y"] = 500, 300
+
+    for c in clients.values():
+        c.get_received()
+    clients[players[hider_key]["name"]].emit("shout", {})
+
+    seeker_name = players[seeker_key]["name"]
+    assert payloads(clients[seeker_name], "shout_heard")
+
+
+def test_nobody_shouts_in_the_lobby(client, sock):
+    code, clients = in_world(client, sock, "Alice", "Bob")
+    for c in clients.values():
+        c.get_received()
+
+    clients["Bob"].emit("shout", {})
+    assert not events(clients["Alice"], "shout_heard")
+    assert not events(clients["Bob"], "shout_made")

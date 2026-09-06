@@ -357,6 +357,34 @@ def _hold_still(player, data):
         emit("position_correction", {"x": player["x"], "y": player["y"]})
 
 
+@socketio.on("shout")
+def on_shout(data):
+    """A player made a noise.
+
+    The only signal in the game that goes through walls, which is exactly
+    why it is worth having and exactly why it costs something: the seeker
+    is in earshot too. Listeners are told a rounded bearing and one of
+    three words for distance rather than a position, so a shout points at
+    a room without handing anybody a coordinate.
+    """
+    code = rooms.room_code_of(request.sid)
+    room = rooms.get(code) if code else None
+    player = rooms.connected_player(request.sid)
+    if room is None or player is None or not player["in_game"]:
+        return
+
+    if not game.can_shout(room, player):
+        return
+    game.mark_shouted(player)
+
+    # Confirmation to the shouter, so the button does something even when
+    # they are alone at the far end of the house.
+    emit("shout_made", {})
+
+    for listener, payload in game.earshot(room, player):
+        socketio.emit("shout_heard", payload, to=listener["sid"])
+
+
 @socketio.on("disconnect")
 def on_disconnect():
     """A socket went away.

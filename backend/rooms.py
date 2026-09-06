@@ -169,6 +169,10 @@ def _new_player(room, name, is_host):
         # Set briefly after the server moves them, so their own stale
         # position updates cannot put them back. See game._clear_the_base.
         "pinned_until": None,
+        # When they last made a noise, so the shout button has a cooldown
+        # on it and holding the key down is not a siren. Kept per player
+        # rather than per socket, or reconnecting would reset it.
+        "shouted_at": 0.0,
         # Which way they are facing, in radians, as their last movement
         # left them. Only modes that give the seeker a torch rather than
         # a circle of sight care, but it costs nothing to keep current.
