@@ -363,7 +363,13 @@ def test_a_near_miss_is_not_a_tag(clock):
     assert hiders[0]["state"] == "free"
 
 
-def test_a_free_hider_thaws_a_frozen_one_after_holding_position(clock):
+def test_running_into_a_frozen_hider_frees_them(clock):
+    """No hold: contact is the whole rescue.
+
+    Standing still beside somebody for a second and a half looked exactly
+    like standing still doing nothing, so people gave up a beat before it
+    landed. The cost of a rescue is the trip, not the wait.
+    """
     code = hunting(clock, "Alice", "Bob", "Carol")
     seeker, hiders = cast(code)
     frozen, rescuer = hiders
@@ -374,14 +380,11 @@ def test_a_free_hider_thaws_a_frozen_one_after_holding_position(clock):
     put(rescuer, 300 + config.RESCUE_DISTANCE - 10, 300)
 
     game.resolve(code, force=True)
-    assert frozen["state"] == "frozen", "a rescue should take a moment"
-
-    clock(config.RESCUE_HOLD_SECONDS + 0.1)
-    game.resolve(code, force=True)
     assert frozen["state"] == "free"
 
 
-def test_stepping_away_mid_rescue_starts_the_hold_again(clock):
+def test_walking_past_out_of_reach_is_not_a_rescue(clock):
+    """It is still contact, so somebody in the next room does nothing."""
     code = hunting(clock, "Alice", "Bob", "Carol")
     seeker, hiders = cast(code)
     frozen, rescuer = hiders
@@ -389,20 +392,10 @@ def test_stepping_away_mid_rescue_starts_the_hold_again(clock):
     put(seeker, 2200, 1400)
     put(frozen, 300, 300)
     frozen["state"] = "frozen"
-    put(rescuer, 320, 300)
+    put(rescuer, 300 + config.RESCUE_DISTANCE + 20, 300)
 
-    clock(config.RESCUE_HOLD_SECONDS - 0.2)
     game.resolve(code, force=True)
-
-    put(rescuer, 1000, 1000)                # scared off
-    game.resolve(code, force=True)
-    assert frozen["rescue_since"] is None
-
-    put(rescuer, 320, 300)
-    game.resolve(code, force=True)
-    clock(0.4)
-    game.resolve(code, force=True)
-    assert frozen["state"] == "frozen", "the hold should have restarted"
+    assert frozen["state"] == "frozen"
 
 
 def test_a_hider_who_is_already_home_cannot_thaw_anybody(clock):
@@ -417,7 +410,6 @@ def test_a_hider_who_is_already_home_cannot_thaw_anybody(clock):
     put(safe, 320, 300)
     safe["state"] = "safe"
 
-    clock(config.RESCUE_HOLD_SECONDS + 1)
     game.resolve(code, force=True)
     assert frozen["state"] == "frozen"
 
@@ -431,7 +423,6 @@ def test_the_seeker_cannot_thaw_anybody(clock):
     put(hiders[1], 2200, 1400)
     put(seeker, 320, 300)                   # standing over their catch
 
-    clock(config.RESCUE_HOLD_SECONDS + 1)
     game.resolve(code, force=True)
     assert hiders[0]["state"] == "frozen"
 

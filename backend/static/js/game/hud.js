@@ -87,9 +87,11 @@ const OBJECTIVES = {
         },
         hunting: {
             tagger: "Search the house. Touch a hider to freeze them.",
-            frozen: "Frozen. Sit tight — a free hider can thaw you.",
+            frozen: "Frozen. Sit tight — a free hider runs into you to "
+                    + "get you up again.",
             safe: "You made it home. Now the rest have to.",
-            hider: "Get back to the base — or go and thaw a frozen friend.",
+            hider: "Get back to the base — or run into a frozen friend "
+                   + "to free them.",
         },
     },
 
@@ -106,7 +108,7 @@ const OBJECTIVES = {
         },
         hunting: {
             tagger: "Run them down. Nothing in this house hides anybody.",
-            frozen: "Caught. No thawing in this one — sit it out.",
+            frozen: "Caught. Nobody can free you in this one — sit it out.",
             hider: "Straight home. The furniture will not save you.",
         },
     },

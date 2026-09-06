@@ -238,7 +238,6 @@ def start(code):
         else:
             player["role"] = "tagger" if odd_one_out else "hider"
         player["state"] = "free"
-        player["rescue_since"] = None
         player["pinned_until"] = None
         # Back to the base, whatever happened last round.
         player["x"], player["y"] = maps.spawn_point(game["map"], index)
@@ -256,7 +255,6 @@ def reset(code):
     for player in room["players"].values():
         player["role"] = None
         player["state"] = "free"
-        player["rescue_since"] = None
         player["pinned_until"] = None
 
 
@@ -467,7 +465,7 @@ def _hunt(room, game, now):
     changes = _contacts(room, game, rules)
 
     if rules["rescues"]:
-        changes |= _rescues(_hiders(room), now)
+        changes |= _rescues(_hiders(room))
 
     changes |= _outcome(room, game, rules, now)
     return changes
@@ -495,14 +493,11 @@ def _contacts(room, game, rules):
         # a dive for the door is worth trying.
         if rules["home_is_safety"] and maps.in_base(game["map"], *_center(hider)):
             hider["state"] = "safe"
-            hider["rescue_since"] = None
             changes.add("players")
             continue
 
         if not any(_distance(t, hider) <= config.TAG_DISTANCE for t in taggers):
             continue
-
-        hider["rescue_since"] = None
 
         if rules["on_tag"] == "convert":
             # The tagged join the hunt instead of stopping. Every catch is
@@ -543,7 +538,6 @@ def _joining(room):
 
         seeker["role"] = "hider"
         seeker["state"] = "free"
-        seeker["rescue_since"] = None
         # They see the house as a hider now, and the hiders see them.
         changes.add("sight")
         changes.add("players")
@@ -619,8 +613,15 @@ def _sardines_outcome(room, game, now):
     return set()
 
 
-def _rescues(hiders, now):
-    """Thaw frozen hiders that a free team-mate has stood with long enough.
+def _rescues(hiders):
+    """Thaw frozen hiders a free team-mate has run into.
+
+    Contact, nothing more: you walk through somebody and they are up
+    again. Holding position for a second and a half used to be the price,
+    and on the screen it was indistinguishable from standing about doing
+    nothing — people arrived, waited, gave up and never learned they had
+    almost done it. The cost is the trip, which is across open floor with
+    a seeker somewhere in the house, and that was always the real one.
 
     Only free hiders can thaw anyone. Somebody who already made it home
     is out of play, so they cannot wander back out and rescue the rest
@@ -633,23 +634,9 @@ def _rescues(hiders, now):
         if frozen["state"] != "frozen":
             continue
 
-        nearby = any(
-            _distance(frozen, rescuer) <= config.RESCUE_DISTANCE
-            for rescuer in rescuers
-        )
-
-        if not nearby:
-            # They stepped away, so the next attempt starts from scratch.
-            if frozen["rescue_since"] is not None:
-                frozen["rescue_since"] = None
-            continue
-
-        if frozen["rescue_since"] is None:
-            frozen["rescue_since"] = now
-            changes.add("players")
-        elif now - frozen["rescue_since"] >= config.RESCUE_HOLD_SECONDS:
+        if any(_distance(frozen, rescuer) <= config.RESCUE_DISTANCE
+               for rescuer in rescuers):
             frozen["state"] = "free"
-            frozen["rescue_since"] = None
             changes.add("players")
 
     return changes
@@ -720,6 +707,7 @@ def public_state(code):
             "visionRadius": rules["vision_radius"],
             "hidingConceals": rules["hiding_conceals"],
             "homeIsSafety": rules["home_is_safety"],
+            "rescues": rules["rescues"],
             "coneDegrees": rules["cone_degrees"],
             "coneReach": rules["cone_reach"],
         },
