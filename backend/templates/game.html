@@ -26,6 +26,16 @@
     </div>
 </div>
 
+{# The house, home, and you. Never anybody else: a map with the other
+   players on it would answer the only question the game is asking. #}
+<div class="minimap" id="minimapPanel">
+    <canvas id="minimap"></canvas>
+    <p class="minimap__legend">
+        <span class="minimap__key minimap__key--you">You</span>
+        <span class="minimap__key minimap__key--home">Home</span>
+    </p>
+</div>
+
 {# Shown only while the connection is down. #}
 <div class="hud" id="connectionBanner" hidden style="top: 66px; justify-content: center;">
     <div class="hud__chip hud__status">Reconnecting…</div>

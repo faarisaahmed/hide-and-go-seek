@@ -20,6 +20,7 @@ import {
 import { drawHud, initHud, showProblem } from "./hud.js";
 import { initTouchControls, readInput } from "./input.js";
 import { loadMap } from "./map_loader.js";
+import { createMinimap } from "./minimap.js";
 import { getRemotePlayers, interpolateRemotes, join } from "./network.js";
 import { moveWithCollision } from "./physics.js";
 import { createRenderer } from "./renderer.js";
@@ -28,6 +29,8 @@ import { resetStamina, stepStamina } from "./stamina.js";
 
 const els = {
     canvas: document.getElementById("gameCanvas"),
+    minimap: document.getElementById("minimap"),
+    minimapPanel: document.getElementById("minimapPanel"),
     banner: document.getElementById("connectionBanner"),
     controls: document.getElementById("controls"),
 };
@@ -86,6 +89,9 @@ async function start() {
     });
 
     const renderer = createRenderer(els.canvas);
+    // Geography only: where the house is, where home is, where you are.
+    // Never where anybody else is — see minimap.js.
+    const minimap = createMinimap(els.minimap);
     const remotePlayers = getRemotePlayers();
 
     initTouchControls();
@@ -144,6 +150,13 @@ async function start() {
         interpolateRemotes(dt);
 
         renderer.draw({ map, localPlayer, remotePlayers });
+
+        // Eyes shut means eyes shut: the seeker's screen is blacked out
+        // while they count, and a map in the corner of it would be the
+        // one thing they could still study.
+        const blind = phase === "counting" && localPlayer.role === "tagger";
+        els.minimapPanel.hidden = blind;
+        if (!blind) minimap.draw({ map, localPlayer });
         drawHud({ map, localPlayer, myName: session.name });
 
         requestAnimationFrame(frame);

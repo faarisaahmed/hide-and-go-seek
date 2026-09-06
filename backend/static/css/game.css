@@ -111,6 +111,64 @@ canvas {
     border-color: rgba(255, 107, 129, 0.4);
 }
 
+/* ===== Minimap =====
+   Bottom-left of the screen on a desktop; it moves out of the thumb
+   pad's way on a phone below. The house never moves, so this is a
+   blitted plan with one marker on it rather than a second game view. */
+
+.minimap {
+    position: fixed;
+    left: 12px;
+    bottom: max(190px, calc(env(safe-area-inset-bottom) + 178px));
+    z-index: 12;
+
+    padding: 6px;
+
+    background: rgba(5, 11, 26, 0.66);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(8px);
+
+    pointer-events: none;
+}
+
+.minimap canvas {
+    display: block;
+    border-radius: 4px;
+}
+
+/* Two keys rather than a sentence: at this size the map is read at a
+   glance, and so should the thing telling you what is on it. */
+.minimap__legend {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 5px 0 1px;
+
+    font-family: var(--font);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.minimap__key {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.minimap__key::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+}
+
+.minimap__key--you::before { background: var(--text); }
+.minimap__key--home::before { background: var(--safe); }
+
 /* ===== The count =====
    Sits in the middle of the screen. While the seeker counts, the canvas
    underneath is painted out, so this is all they have. */
