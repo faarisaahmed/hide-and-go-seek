@@ -338,6 +338,18 @@ function drawStamina() {
 function drawOverlay(round, me) {
     const over = round.phase === "over";
     setHidden(els.overlay, !over);
+
+    // Pressing "play again" disables the button so it cannot be sent
+    // twice. A round that has been played since then is a new card, so
+    // give it back rather than leaving a dead button on the screen.
+    if (shown.overlayOpen !== over) {
+        shown.overlayOpen = over;
+        if (over) {
+            els.againButton.disabled = false;
+            setText(els.overlayProblem, "");
+        }
+    }
+
     if (!over) return;
 
     setText(els.overlayTitle, outcomeTitle(round));
@@ -386,9 +398,11 @@ function drawOverlay(round, me) {
         els.overlayPlayers.replaceChildren(rows);
     }
 
-    const amHost = Boolean(me?.isHost);
-    setHidden(els.againButton, !amHost);
-    setText(els.overlayHint, amHost ? "" : "Waiting for the host to start another round…");
+    // The round is over, so anybody may deal again — waiting on a host
+    // who has put their phone down is not part of the game.
+    setHidden(els.againButton, false);
+    setText(els.overlayHint, me?.isHost
+        ? "" : "Anyone can start the next one — the seeker rotates.");
 }
 
 /* ===== Public ===== */
