@@ -285,6 +285,34 @@ def can_move(room, player):
     return True
 
 
+def can_stand(room, player, x, y):
+    """May this player be at this position, wherever they came from?
+
+    The base is the one patch of floor the seeker does not get. Standing
+    on it, they could not be run past, and the last hider would have
+    nowhere left to go — the round would end by somebody parking on the
+    finish line. So it is a wall to them, drawn nowhere and enforced
+    here, since a client that has been edited to walk through it is
+    exactly the client that would.
+
+    A seeker who is somehow already inside is let out rather than pinned
+    there, so a bug in the placement code cannot become a stuck player.
+    """
+    game = _state(room)
+
+    if player["role"] != "tagger" or game["phase"] != "hunting":
+        return True
+    # Nothing to defend in a mode where home is only a rug.
+    if not _rules(game)["home_is_safety"]:
+        return True
+
+    size = config.PLAYER_SIZE
+    if maps.touches_base(game["map"], player["x"], player["y"], size):
+        return True
+
+    return not maps.touches_base(game["map"], x, y, size)
+
+
 def can_see(room, viewer, target):
     """Should ``viewer`` be sent ``target``'s position?
 
@@ -472,10 +500,16 @@ def _hunt(room, game, now):
 
 
 def _contacts(room, game, rules):
-    """Hiders reaching home, and hiders a seeker has caught up with.
+    """Who is standing on home, and who a seeker has caught up with.
 
     Re-read each pass rather than taken as an argument, because a mode
     that moves players between the two sides does so as this runs.
+
+    Safety is a *place*, not something you win and keep. A hider is safe
+    for exactly as long as they are stood on the base and is fair game
+    again the moment they step off it — otherwise touching home once
+    bought immunity for the rest of the round, and people wandered back
+    out through the middle of a hunt untouchable.
     """
     if rules["on_tag"] == "recruit":
         return _joining(room)
@@ -486,15 +520,21 @@ def _contacts(room, game, rules):
     taggers = [t for t in _taggers(room) if t["sid"] is not None]
 
     for hider in _hiders(room):
-        if hider["state"] != "free":
+        # Being frozen outranks where you are standing; a tagged player
+        # dropped on the base is still tagged.
+        if hider["state"] == "frozen":
             continue
 
-        # Home is checked first: stepping onto the base beats a tag, so
-        # a dive for the door is worth trying.
-        if rules["home_is_safety"] and maps.in_base(game["map"], *_center(hider)):
-            hider["state"] = "safe"
-            changes.add("players")
-            continue
+        # Checked before a tag, so a dive for the door is worth trying:
+        # crossing the line in the same moment beats the touch.
+        if rules["home_is_safety"]:
+            home = maps.in_base(game["map"], *_center(hider))
+            wanted = "safe" if home else "free"
+            if hider["state"] != wanted:
+                hider["state"] = wanted
+                changes.add("players")
+            if home:
+                continue
 
         if not any(_distance(t, hider) <= config.TAG_DISTANCE for t in taggers):
             continue

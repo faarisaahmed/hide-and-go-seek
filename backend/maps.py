@@ -121,3 +121,18 @@ def in_base(name, cx, cy):
         and zone["y"] <= cy <= zone["y"] + zone["h"]
         for zone in base_zones(name)
     )
+
+
+def touches_base(name, x, y, size):
+    """Does a player's whole box overlap a base zone?
+
+    Reaching home is decided on a player's centre — half a foot over the
+    line is not home. Keeping the seeker *out* is the opposite question
+    and wants the whole box, because the base is a wall to them and you
+    do not get to stand with your shoulder inside a wall.
+    """
+    return any(
+        x < zone["x"] + zone["w"] and x + size > zone["x"]
+        and y < zone["y"] + zone["h"] and y + size > zone["y"]
+        for zone in base_zones(name)
+    )

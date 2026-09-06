@@ -235,6 +235,86 @@ def test_wandering_is_allowed_with_no_round_running(clock):
 
 
 # ---------------------------------------------------------------------------
+# The base is a wall to the seeker
+# ---------------------------------------------------------------------------
+#
+# Parking on the base would decide the round by standing on the finish
+# line, so it is the one patch of floor the seeker does not get.
+
+def on_base(player):
+    """A position whose whole box sits inside the base zone."""
+    half = config.PLAYER_SIZE / 2
+    return BASE[0] - half, BASE[1] - half
+
+
+def test_the_seeker_cannot_stand_on_the_base(clock):
+    code = hunting(clock, "Alice", "Bob")
+    room = rooms.get(code)
+    seeker, hiders = cast(code)
+
+    put(seeker, BASE[0] - 300, BASE[1])
+    assert not game.can_stand(room, seeker, *on_base(seeker))
+
+
+def test_hiders_are_not_stopped_by_it(clock):
+    """It is their finish line; walking onto it is the point."""
+    code = hunting(clock, "Alice", "Bob")
+    room = rooms.get(code)
+    _, hiders = cast(code)
+
+    assert game.can_stand(room, hiders[0], *on_base(hiders[0]))
+
+
+def test_the_seeker_may_walk_right_up_to_the_edge(clock):
+    """A wall, not an exclusion zone. Waiting outside the door is fair."""
+    code = hunting(clock, "Alice", "Bob")
+    room = rooms.get(code)
+    seeker, _ = cast(code)
+
+    zone = maps.base_zones(config.DEFAULT_MAP)[0]
+    beside = (zone["x"] - config.PLAYER_SIZE - 1, zone["y"])
+
+    put(seeker, BASE[0] - 300, BASE[1])
+    assert game.can_stand(room, seeker, *beside)
+
+
+def test_a_seeker_somehow_inside_it_can_get_out_again(clock):
+    """Self-healing on purpose: a stuck player is worse than a lost rule."""
+    code = hunting(clock, "Alice", "Bob")
+    room = rooms.get(code)
+    seeker, _ = cast(code)
+
+    seeker["x"], seeker["y"] = on_base(seeker)
+    assert game.can_stand(room, seeker, BASE[0] - 300, BASE[1])
+
+
+def test_nothing_is_walled_off_before_the_hunt_starts(clock):
+    """Everybody starts on the base, seeker included."""
+    code = started("Alice", "Bob")
+    room = rooms.get(code)
+    seeker, _ = cast(code)
+
+    assert game.can_stand(room, seeker, *on_base(seeker))
+
+
+def test_the_base_is_open_to_everyone_in_sardines(clock):
+    """There is nothing to run home to, so there is nothing to defend."""
+    import modes
+
+    code = make_room("Alice", "Bob")
+    rooms.set_mode(code, "sardines")
+    game.start(code)
+    game.resolve(code, force=True)
+    clock(config.COUNTDOWN_SECONDS + 1)
+    game.resolve(code, force=True)
+
+    room = rooms.get(code)
+    assert modes.get("sardines")["home_is_safety"] is False
+    for player in room["players"].values():
+        assert game.can_stand(room, player, *on_base(player))
+
+
+# ---------------------------------------------------------------------------
 # Nobody hides next to the base
 # ---------------------------------------------------------------------------
 
@@ -398,19 +478,28 @@ def test_walking_past_out_of_reach_is_not_a_rescue(clock):
     assert frozen["state"] == "frozen"
 
 
-def test_a_hider_who_is_already_home_cannot_thaw_anybody(clock):
-    """Otherwise rescuing costs nothing and the seeker can never win."""
+def test_a_hider_stood_on_the_base_cannot_thaw_anybody(clock):
+    """You do not get to be safe and useful at the same time.
+
+    Reaching out of the base to free somebody just past its edge would
+    make a rescue free, and the seeker could never close a round out.
+    """
     code = hunting(clock, "Alice", "Bob", "Carol")
     seeker, hiders = cast(code)
     frozen, safe = hiders
 
+    zone = maps.base_zones(config.DEFAULT_MAP)[0]
+    inside = (zone["x"] + zone["w"] / 2, zone["y"] + zone["h"] - 5)
+    just_outside = (inside[0], zone["y"] + zone["h"] + 45)
+    assert (just_outside[1] - inside[1]) < config.RESCUE_DISTANCE
+
     put(seeker, 2200, 1400)
-    put(frozen, 300, 300)
+    put(frozen, *just_outside)
     frozen["state"] = "frozen"
-    put(safe, 320, 300)
-    safe["state"] = "safe"
+    put(safe, *inside)
 
     game.resolve(code, force=True)
+    assert safe["state"] == "safe", "they are stood on the base"
     assert frozen["state"] == "frozen"
 
 
@@ -456,7 +545,7 @@ def test_reaching_the_base_beats_a_tag_in_the_same_moment(clock):
     assert hiders[0]["state"] == "safe"
 
 
-def test_a_safe_hider_cannot_be_tagged_afterwards(clock):
+def test_a_hider_on_the_base_cannot_be_tagged(clock):
     code = hunting(clock, "Alice", "Bob", "Carol")
     seeker, hiders = cast(code)
 
@@ -468,6 +557,75 @@ def test_a_safe_hider_cannot_be_tagged_afterwards(clock):
     put(seeker, BASE[0] + 5, BASE[1])
     game.resolve(code, force=True)
     assert hiders[0]["state"] == "safe"
+
+
+def test_stepping_off_the_base_makes_you_fair_game_again(clock):
+    """Safety is a place, not a prize. Touching home once used to buy
+    immunity for the rest of the round, and people strolled back out
+    through the middle of a hunt untouchable."""
+    code = hunting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 2200, 1400)
+    put(hiders[1], 300, 300)
+
+    put(hiders[0], *BASE)
+    game.resolve(code, force=True)
+    assert hiders[0]["state"] == "safe"
+
+    put(hiders[0], BASE[0] + 400, BASE[1])
+    game.resolve(code, force=True)
+    assert hiders[0]["state"] == "free"
+
+
+def test_a_hider_who_wandered_back_out_can_be_caught(clock):
+    code = hunting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 2200, 1400)
+    put(hiders[1], 300, 300)
+
+    put(hiders[0], *BASE)
+    game.resolve(code, force=True)
+    assert hiders[0]["state"] == "safe"
+
+    # Out of the base, and the seeker is right there.
+    put(hiders[0], 300, 300)
+    put(seeker, 320, 300)
+    game.resolve(code, force=True)
+    assert hiders[0]["state"] == "frozen"
+
+
+def test_a_frozen_hider_is_not_saved_by_where_they_are_standing(clock):
+    """Somebody tagged on the doorstep stays tagged."""
+    code = hunting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 2200, 1400)
+    put(hiders[1], 300, 300)
+    put(hiders[0], *BASE)
+    hiders[0]["state"] = "frozen"
+
+    game.resolve(code, force=True)
+    assert hiders[0]["state"] == "frozen"
+
+
+def test_hiders_win_by_all_being_on_the_base_at_once(clock):
+    """The flip side of safety being a place: the round is won by
+    everybody standing on it together, not by each of them having been
+    there at some point."""
+    code = hunting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 2200, 1400)
+    put(hiders[0], *BASE)
+    put(hiders[1], 300, 300)
+    game.resolve(code, force=True)
+    assert game.state(code)["phase"] == "hunting"
+
+    put(hiders[1], BASE[0] + 30, BASE[1])
+    game.resolve(code, force=True)
+    assert game.state(code)["winner"] == "hiders"
 
 
 # ---------------------------------------------------------------------------

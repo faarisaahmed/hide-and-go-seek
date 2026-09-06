@@ -29,7 +29,7 @@ import {
     TILE_SIZE,
 } from "./config.js";
 import { hideSpotAt } from "./map_loader.js";
-import { getRound, playerNamed } from "./round.js";
+import { baseIsWall, getRound, playerNamed } from "./round.js";
 
 /*
  * Rounded rectangles, with a square fallback.
@@ -328,10 +328,16 @@ export function createRenderer(canvas) {
         }
     }
 
-    function drawBase(map, now) {
+    function drawBase(map, now, walled) {
         // Breathes gently, so home is the thing your eye goes to in a
         // dark house.
         const pulse = 0.5 + 0.5 * Math.sin(now / 550);
+
+        // To the seeker it is a wall rather than a destination, so it is
+        // drawn as one: their colour, a hard edge, and "NO ENTRY" where
+        // everybody else reads "HOME". An invisible wall you can see is
+        // a rule; one you cannot is a bug report.
+        const tone = walled ? COLORS.tagger : COLORS.base;
 
         for (const zone of map.base_zones) {
             if (!onScreen(zone)) continue;
@@ -340,25 +346,27 @@ export function createRenderer(canvas) {
             const y = screenY(zone.y);
 
             ctx.save();
-            ctx.shadowColor = COLORS.base;
+            ctx.shadowColor = tone;
             ctx.shadowBlur = 18 + 14 * pulse;
 
-            ctx.fillStyle = COLORS.base;
+            ctx.fillStyle = tone;
             ctx.globalAlpha = 0.22 + 0.12 * pulse;
             pathRect(ctx, x, y, zone.w, zone.h, 12);
             ctx.fill();
 
             ctx.globalAlpha = 1;
-            ctx.strokeStyle = COLORS.base;
+            ctx.strokeStyle = tone;
             ctx.lineWidth = 3;
+            if (walled) ctx.setLineDash([9, 6]);
             ctx.stroke();
             ctx.restore();
 
-            ctx.fillStyle = COLORS.base;
+            ctx.fillStyle = tone;
             ctx.font = "bold 12px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText("HOME", x + zone.w / 2, y + zone.h / 2);
+            ctx.fillText(walled ? "NO ENTRY" : "HOME",
+                         x + zone.w / 2, y + zone.h / 2);
         }
     }
 
@@ -632,7 +640,7 @@ export function createRenderer(canvas) {
 
         drawFurniture(map.decor, COLORS.decor);
         drawFurniture(map.hideSpots, COLORS.hide);
-        drawBase(map, now);
+        drawBase(map, now, baseIsWall(localPlayer.role));
         drawFurniture(map.solidFurniture, COLORS.solid);
 
         drawRoomLabels(map);

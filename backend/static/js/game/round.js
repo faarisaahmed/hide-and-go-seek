@@ -95,6 +95,21 @@ export function playerNamed(name) {
  * this copy is so the joystick goes dead immediately instead of a round
  * trip later.
  */
+/*
+ * Whether the base is a wall for this player right now.
+ *
+ * It is, for the seeker, once the hunt is on: standing on it they could
+ * not be run past, and the round would be decided by parking on the
+ * finish line. The server refuses positions inside it (game.can_stand);
+ * this is what stops the client walking into an invisible wall and being
+ * snapped back a round trip later.
+ */
+export function baseIsWall(role) {
+    return round.phase === "hunting"
+        && role === "tagger"
+        && round.rules.homeIsSafety;
+}
+
 export function canMove(role, state) {
     switch (round.phase) {
         case "gathering":

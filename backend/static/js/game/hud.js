@@ -86,10 +86,12 @@ const OBJECTIVES = {
             hider: "Run! Get well clear of the base, then hide.",
         },
         hunting: {
-            tagger: "Search the house. Touch a hider to freeze them.",
+            tagger: "Search the house. Touch a hider to freeze them — "
+                    + "but you cannot set foot on the base.",
             frozen: "Frozen. Sit tight — a free hider runs into you to "
                     + "get you up again.",
-            safe: "You made it home. Now the rest have to.",
+            safe: "Safe — while you are stood on it. Step off and you "
+                  + "are fair game again.",
             hider: "Get back to the base — or run into a frozen friend "
                    + "to free them.",
         },
