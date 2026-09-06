@@ -511,8 +511,31 @@ def test_the_seeker_wins_by_freezing_everybody(clock):
     assert state["winner"] == "tagger"
 
 
-def test_one_frozen_hider_costs_the_hiders_the_round(clock):
-    """A round ends when nobody free is left to change the outcome."""
+def test_one_player_home_does_not_end_it_for_everybody_else(clock):
+    """The bug this replaces: a round that stopped mid-play.
+
+    One hider on the base and the rest still running is a position, not a
+    result. It ends when they are all frozen, all home, or out of time —
+    nothing else.
+    """
+    code = hunting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 2200, 1400)
+    put(hiders[0], *BASE)
+    put(hiders[1], 300, 300)
+
+    game.resolve(code, force=True)
+    assert hiders[0]["state"] == "safe"
+    assert game.state(code)["phase"] == "hunting"
+
+
+def test_one_home_and_one_frozen_plays_on_to_the_clock(clock):
+    """Nobody free is left, but the round still has time on it.
+
+    The clock is what decides this one, not the server deciding for the
+    room that there is nothing left to watch.
+    """
     code = hunting(clock, "Alice", "Bob", "Carol")
     seeker, hiders = cast(code)
 
@@ -522,7 +545,14 @@ def test_one_frozen_hider_costs_the_hiders_the_round(clock):
     put(hiders[1], 300, 300)
 
     game.resolve(code, force=True)
-    assert game.state(code)["winner"] == "tagger"
+    assert game.state(code)["phase"] == "hunting"
+
+    clock(config.ROUND_SECONDS + 1)
+    game.resolve(code, force=True)
+
+    state = game.state(code)
+    assert state["phase"] == "over"
+    assert state["winner"] == "tagger"
 
 
 def test_running_out_of_time_goes_to_the_seeker(clock):
@@ -553,7 +583,12 @@ def test_the_round_ends_if_the_seeker_leaves(clock):
     assert "seeker left" in state["note"]
 
 
-def test_a_hider_whose_phone_dropped_does_not_stall_the_round(clock):
+def test_a_dropped_connection_does_not_end_the_round_on_the_spot(clock):
+    """A phone locking for a second is not the same as leaving.
+
+    This used to hand the round to whoever was left, which is how a game
+    could end while two people were still running around in it.
+    """
     code = hunting(clock, "Alice", "Bob", "Carol")
     seeker, hiders = cast(code)
 
@@ -562,7 +597,26 @@ def test_a_hider_whose_phone_dropped_does_not_stall_the_round(clock):
     hiders[1]["sid"] = None                 # lost their connection
 
     game.resolve(code, force=True)
-    assert game.state(code)["phase"] == "over"
+    assert game.state(code)["phase"] == "hunting"
+
+
+def test_a_hider_who_really_left_stops_holding_the_round_open(clock):
+    """The other half of it: rooms.py drops them once the grace period is
+    up, and the round resolves the moment it does."""
+    import time
+
+    code = hunting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, 2200, 1400)
+    put(hiders[0], *BASE)
+    hiders[1]["sid"] = None
+    hiders[1]["left_at"] = time.monotonic() - config.DISCONNECT_GRACE_SECONDS - 1
+
+    game.resolve(code, force=True)
+    state = game.state(code)
+    assert state["phase"] == "over"
+    assert state["winner"] == "hiders"
 
 
 # ---------------------------------------------------------------------------
