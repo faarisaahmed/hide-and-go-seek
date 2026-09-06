@@ -565,7 +565,7 @@ function drawOverlay(round, me) {
     // Rebuilt only when the roster line actually differs, since this is
     // called every frame while the overlay is up.
     const signature = round.players
-        .map((p) => `${p.emoji}${p.name}${p.role}${p.state}`)
+        .map((p) => `${p.emoji}${p.color}${p.name}${p.role}${p.state}`)
         .join("|");
 
     if (shown.roster !== signature) {
@@ -579,6 +579,9 @@ function drawOverlay(round, me) {
             const emoji = document.createElement("span");
             emoji.className = "result__emoji";
             emoji.textContent = player.emoji;
+            // The colour their square was, so the roster reads as the
+            // people you were just chasing round a house.
+            emoji.style.background = player.color;
 
             const name = document.createElement("span");
             name.className = "result__name";

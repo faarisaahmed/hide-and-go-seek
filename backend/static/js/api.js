@@ -34,6 +34,10 @@ export function changeEmoji(code, name, emoji) {
     return postJSON("/change_emoji", { code, name, emoji });
 }
 
+export function changeColor(code, name, color) {
+    return postJSON("/change_color", { code, name, color });
+}
+
 export function setMode(code, name, mode) {
     return postJSON("/set_mode", { code, name, mode });
 }

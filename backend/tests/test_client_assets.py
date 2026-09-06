@@ -28,6 +28,23 @@ def test_the_emoji_picker_offers_exactly_what_the_server_accepts():
     assert picker == config.EMOJI_POOL
 
 
+def test_the_colour_picker_offers_exactly_what_the_server_accepts():
+    """A swatch the server refuses is a swatch that does nothing when
+    tapped, which is worse than one that is not there."""
+    source = read("js", "lobby.js")
+    listed = re.search(r"const COLORS = \[(.*?)\];", source, re.S).group(1)
+    picker = re.findall(r'"([^"]+)"', listed)
+
+    assert picker == config.COLOR_POOL
+
+
+def test_no_two_players_can_end_up_the_same_colour_by_default():
+    """The pool has to be at least as long as a plausible room, or the
+    fallback hands two people the same colour on join."""
+    assert len(config.COLOR_POOL) == len(set(config.COLOR_POOL))
+    assert len(config.COLOR_POOL) >= 8
+
+
 def test_every_page_asset_exists(client):
     for path in ["/", "/room_page", "/game_page"]:
         html = client.get(path).get_data(as_text=True)
@@ -62,7 +79,7 @@ def test_elements_the_lobby_reveals_start_hidden():
     """
     markup = read("..", "templates", "room.html")
 
-    for element_id in ["emojiPicker", "startButton", "waitingNote"]:
+    for element_id in ["emojiPicker", "startButton", "waitingNote", "chatDot"]:
         pattern = rf'id="{element_id}"[^>]*>'
         tag = re.search(pattern, markup, re.S)
         assert tag, f"{element_id} missing from room.html"
@@ -85,6 +102,28 @@ def test_every_control_is_written_down_where_players_will_see_it():
 
         for key in ["Shift", ">Y<"]:
             assert key in markup, f"{page} never mentions {key}"
+
+
+def test_every_lobby_tab_has_a_panel_to_show():
+    """A tab with no panel is a tab that blanks the screen, and the two
+    lists are written down a hundred lines apart in the same file."""
+    markup = read("..", "templates", "room.html")
+
+    tabs = re.findall(r'class="tab[^"]*"[^>]*data-tab="([^"]+)"', markup)
+    panels = re.findall(r'class="tab-panel"[^>]*data-panel="([^"]+)"', markup)
+
+    assert tabs, "room.html has no tabs"
+    assert sorted(tabs) == sorted(panels), f"{tabs} vs {panels}"
+
+
+def test_exactly_one_lobby_tab_starts_open():
+    """Two open at once stacks them; none open is a blank screen."""
+    markup = read("..", "templates", "room.html")
+
+    panels = re.findall(r'class="tab-panel"[^>]*data-panel="[^"]+"[^>]*>', markup)
+    showing = [tag for tag in panels if "hidden" not in tag]
+
+    assert len(showing) == 1, f"{len(showing)} panels start visible"
 
 
 def test_the_thumb_pad_says_what_its_buttons_do():

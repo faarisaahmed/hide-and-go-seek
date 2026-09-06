@@ -28,8 +28,10 @@ const INK = {
 export function createMinimap(canvas) {
     const ctx = canvas.getContext("2d");
 
-    /* The house, pre-drawn. Rebuilt only if the map itself changes. */
-    const plan = { canvas: document.createElement("canvas"), of: null };
+    /* The house, pre-drawn. Rebuilt only when the map changes, or when
+     * the mode stops having a base to mark on it. */
+    const plan = { canvas: document.createElement("canvas"), of: null,
+                   withBase: null };
 
     let scale = 1;
     let offsetX = 0;
@@ -51,7 +53,7 @@ export function createMinimap(canvas) {
         return offsetY + worldY * scale;
     }
 
-    function buildPlan(map) {
+    function buildPlan(map, hasBase) {
         plan.canvas.width = MINIMAP_WIDTH;
         plan.canvas.height = MINIMAP_HEIGHT;
 
@@ -88,15 +90,18 @@ export function createMinimap(canvas) {
         }
 
         // Home, which is the one place worth being able to find from
-        // anywhere in the house.
-        p.fillStyle = COLORS.base;
-        for (const zone of map.base_zones) {
-            p.fillRect(mapX(zone.x), mapY(zone.y),
-                       Math.max(3, zone.w * scale),
-                       Math.max(3, zone.h * scale));
+        // anywhere in the house — in the modes that have one.
+        if (hasBase) {
+            p.fillStyle = COLORS.base;
+            for (const zone of map.base_zones) {
+                p.fillRect(mapX(zone.x), mapY(zone.y),
+                           Math.max(3, zone.w * scale),
+                           Math.max(3, zone.h * scale));
+            }
         }
 
         plan.of = map;
+        plan.withBase = hasBase;
     }
 
     function resize() {
@@ -138,17 +143,17 @@ export function createMinimap(canvas) {
         ctx.restore();
     }
 
-    function draw({ map, localPlayer }) {
-        if (plan.of !== map) {
+    function draw({ map, localPlayer, hasBase }) {
+        if (plan.of !== map || plan.withBase !== hasBase) {
             fit(map);
-            buildPlan(map);
+            buildPlan(map, hasBase);
         }
 
         ctx.clearRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
         ctx.drawImage(plan.canvas, 0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
 
-        drawYou(localPlayer,
-                localPlayer.role === "tagger" ? COLORS.tagger : COLORS.hider);
+        drawYou(localPlayer, localPlayer.color
+            || (localPlayer.role === "tagger" ? COLORS.tagger : COLORS.hider));
     }
 
     return { draw };

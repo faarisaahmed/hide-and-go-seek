@@ -40,6 +40,7 @@ def _world_payload(player):
         "id": player["sid"],
         "name": player["name"],
         "emoji": player["emoji"],
+        "color": player["color"],
         "x": player["x"],
         "y": player["y"],
     }

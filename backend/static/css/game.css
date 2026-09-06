@@ -482,8 +482,16 @@ canvas {
 
 .result__emoji {
     flex: none;
-    font-size: 19px;
+    width: 28px;
+    height: 28px;
+
+    display: grid;
+    place-items: center;
+
+    font-size: 17px;
     line-height: 1;
+
+    border-radius: 9px;
 }
 
 .result__name {

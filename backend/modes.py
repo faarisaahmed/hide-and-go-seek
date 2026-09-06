@@ -32,9 +32,16 @@ The keys
     Whether furniture hides you from the seeker at all. Off makes the
     round a chase rather than a search.
 
+``has_base``
+    Whether the house has a home base in this mode at all. Off, there is
+    no square on the floor, no compass pointing at it and no wall keeping
+    the seeker off it — the middle of the house is just the middle of the
+    house. A base that is drawn but does nothing is worse than no base:
+    people run to it.
+
 ``home_is_safety``
-    Whether standing on the base takes a hider out of play. Off in
-    sardines, where there is nothing to run home to.
+    Whether standing on the base takes a hider out of play. Only means
+    anything where there is a base to stand on.
 
 ``vision_radius``
     How far anyone can see. Enforced on the server, so a shorter one is
@@ -62,6 +69,7 @@ _DEFAULTS = {
     "on_tag": "freeze",
     "rescues": True,
     "hiding_conceals": True,
+    "has_base": True,
     "home_is_safety": True,
     "vision_radius": config.VISION_RADIUS,
     "cone_degrees": None,
@@ -135,7 +143,10 @@ _MODES = [
         "on_tag": "recruit",
         "rescues": False,
         # There is nothing to run home to: the game is over when there is
-        # nobody left still looking.
+        # nobody left still looking. So the house does not have a base in
+        # this one at all — drawing a glowing square that does nothing is
+        # how you get people running to it.
+        "has_base": False,
         "home_is_safety": False,
         # Long, because it ends by everybody finding one person rather
         # than one person finding everybody.
@@ -151,6 +162,13 @@ def _build():
     for mode in _MODES:
         merged = dict(_DEFAULTS)
         merged.update(mode)
+
+        # Safety needs somewhere to be safe. A mode that said otherwise
+        # would send hiders running at a square that is not there.
+        assert not merged["home_is_safety"] or merged["has_base"], (
+            f'{mode["id"]} makes home safe without having a home'
+        )
+
         built[mode["id"]] = merged
     return built
 

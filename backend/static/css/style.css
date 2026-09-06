@@ -428,6 +428,12 @@ body {
     border-radius: 11px;
 }
 
+/* Their square in the house is this colour, painted on from lobby.js so
+   the roster and the world agree. */
+.player__emoji {
+    border: 1px solid transparent;
+}
+
 .player__name {
     flex: 1;
     min-width: 0;
@@ -485,11 +491,88 @@ body {
     opacity: 0.42;
 }
 
-/* ===== Emoji picker ===== */
+/* ===== Tabs =====
+   The lobby used to be eight cards stacked down a phone screen, and the
+   thing you had come back for was always three scrolls away. Almost all
+   of it is set once (your emoji, the mode) or read once (the rules), so
+   it lives behind tabs and the screen shows one thing at a time. */
 
-.emoji-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+.tabs {
+    display: flex;
+    gap: 4px;
+
+    margin-bottom: 4px;
+    padding: 4px;
+
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+
+    /* Four labels on a narrow phone, rather than four squeezed ones. */
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    position: relative;
+    flex: 1;
+    min-width: max-content;
+
+    padding: 9px 14px;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--text-faint);
+
+    background: none;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tab:hover {
+    color: var(--text-dim);
+}
+
+.tab.is-on {
+    color: var(--accent-ink);
+    background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+}
+
+/* Something said since you last looked. Not a count: the number is never
+   the point, only whether it is worth switching tabs for. */
+.tab__dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-left: 5px;
+    vertical-align: 1px;
+
+    background: var(--danger);
+    border-radius: 50%;
+}
+
+.tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ===== Emoji and colour picker ===== */
+
+/* One panel for both, opened by tapping your own row. Off screen the
+   rest of the time: it is a thing you do once. */
+.picker {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
 
     padding: 14px;
@@ -498,6 +581,26 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow);
+}
+
+.picker__label {
+    margin: 0;
+
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.picker__label:not(:first-child) {
+    margin-top: 6px;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 8px;
 }
 
 .emoji-option {
@@ -543,6 +646,48 @@ body {
     cursor: default;
 }
 
+/* Colours. Bigger targets than the emoji, since a swatch has nothing in
+   it to aim at. */
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 8px;
+}
+
+.color-option {
+    aspect-ratio: 1;
+
+    border: 2px solid transparent;
+    border-radius: 12px;
+    cursor: pointer;
+
+    transition: transform 0.12s ease, border-color 0.15s ease;
+}
+
+.color-option:hover {
+    transform: scale(1.09);
+    border-color: var(--text);
+}
+
+.color-option--taken {
+    opacity: 0.22;
+    cursor: not-allowed;
+}
+
+.color-option--taken:hover {
+    transform: none;
+    border-color: transparent;
+}
+
+/* The one you are wearing right now: a white ring, which reads against
+   every colour in the pool. */
+.color-option--mine {
+    border-color: var(--text);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+    opacity: 1;
+    cursor: default;
+}
+
 /* ===== Chat ===== */
 
 .chat {
@@ -550,53 +695,10 @@ body {
     overflow: hidden;
 }
 
-.chat__toggle {
-    width: 100%;
-    padding: 14px 18px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: var(--text-dim);
-
-    background: none;
-    border: none;
-    cursor: pointer;
-}
-
-.chat__toggle:hover {
-    color: var(--text);
-}
-
-.chat__caret {
-    font-size: 11px;
-    transition: transform 0.25s ease;
-}
-
-.chat__panel {
-    max-height: 340px;
-    overflow: hidden;
-    transition: max-height 0.25s ease;
-}
-
-.chat__panel.is-collapsed {
-    max-height: 0;
-}
-
-/* Point the caret at the panel's current state. */
-.chat__panel.is-collapsed ~ .chat__toggle .chat__caret,
-.chat__toggle[aria-expanded="false"] .chat__caret {
-    transform: rotate(-90deg);
-}
-
+/* No collapse control any more: the Chat tab is the collapse control,
+   and the log gets the whole panel to itself. */
 .chat__log {
-    height: 190px;
+    height: 320px;
     overflow-y: auto;
     padding: 4px 18px 10px;
 
