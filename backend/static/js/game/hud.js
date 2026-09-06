@@ -11,7 +11,9 @@
  * changed, not sixty times a second.
  */
 
+import { SEEKER_CAMP_SECONDS } from "./config.js";
 import { hideSpotAt } from "./map_loader.js";
+import { relocationNote } from "./relocation.js";
 import { getRound, playerNamed, roundSecondsLeft, secondsLeft } from "./round.js";
 import { compassWord, latestShout } from "./shouts.js";
 import { getStamina } from "./stamina.js";
@@ -30,6 +32,7 @@ const els = {
 
     objective: document.getElementById("objective"),
     shout: document.getElementById("shoutNote"),
+    nudge: document.getElementById("nudgeNote"),
 
     roleCard: document.getElementById("roleCard"),
     roleCardTitle: document.getElementById("roleCardTitle"),
@@ -457,6 +460,69 @@ function drawShout() {
     setClass(els.shout, "is-close", shout.nearness === "close");
 }
 
+/* When the local seeker walked into the base's room, so the warning can
+ * count down. The server keeps the real clock and will move them whether
+ * this agrees or not; this only has to stop the eviction arriving out of
+ * a clear blue sky. */
+let campingSince = null;
+
+/*
+ * "Move on" — the seeker's clock in the room the base is in.
+ *
+ * They cannot stand on the base, but standing beside it is nearly as
+ * good, so the room is on a timer. Counting it down in front of them
+ * turns a teleport into a rule they can see coming, and gives them the
+ * few seconds they are actually entitled to.
+ */
+function drawCampClock(map, localPlayer, round, me) {
+    const watched = round.phase === "hunting"
+        && me?.role === "tagger"
+        && round.rules.homeIsSafety
+        && Boolean(map.baseRoom);
+
+    const room = map.baseRoom;
+    const inside = watched
+        && localPlayer.x + localPlayer.size / 2 >= room.x
+        && localPlayer.x + localPlayer.size / 2 <= room.x + room.w
+        && localPlayer.y + localPlayer.size / 2 >= room.y
+        && localPlayer.y + localPlayer.size / 2 <= room.y + room.h;
+
+    if (!inside) {
+        campingSince = null;
+        return false;
+    }
+
+    const now = performance.now();
+    if (campingSince === null) campingSince = now;
+
+    const left = Math.max(
+        0, Math.ceil(SEEKER_CAMP_SECONDS - (now - campingSince) / 1000));
+
+    setText(els.nudge, `No camping — move on in ${left}`);
+    setClass(els.nudge, "is-urgent", left <= 2);
+    return true;
+}
+
+/*
+ * One line for both of the things that shove you about: the countdown
+ * warning you are about to be moved, and the explanation once you have
+ * been. They share an element because they are the same conversation,
+ * and because they can never both be true — being moved puts you
+ * somewhere the countdown does not run.
+ */
+function drawNudge(map, localPlayer, round, me) {
+    const moved = relocationNote(performance.now());
+    if (moved) {
+        campingSince = null;
+        setText(els.nudge, moved);
+        setClass(els.nudge, "is-urgent", true);
+        setHidden(els.nudge, false);
+        return;
+    }
+
+    setHidden(els.nudge, !drawCampClock(map, localPlayer, round, me));
+}
+
 /*
  * The sprint bar. Written as a rounded percentage: at sixty frames a
  * second an exact width would be a layout recalculation every frame for
@@ -576,6 +642,7 @@ export function drawHud({ map, localPlayer, myName }) {
     drawRoleCard(round, me);
     drawHidingNote(map, localPlayer, round, me);
     drawShout();
+    drawNudge(map, localPlayer, round, me);
     drawStamina();
     setText(els.objective, objectiveFor(round, me));
     drawOverlay(round, me);

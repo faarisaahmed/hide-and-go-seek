@@ -119,6 +119,16 @@ SHOUT_COOLDOWN_SECONDS = 2.0
 # to a real hiding spot.
 NO_HIDE_RADIUS = 400
 
+# The seeker cannot stand *on* the base, but standing beside it and
+# waiting is nearly as good, and it turns the last minute of a round into
+# a staring contest. So the room the base is in has a clock on it: linger
+# past this and the house puts you somewhere else at random.
+#
+# Long enough to walk through the room, chase somebody across it, or tag
+# a hider making a run for the door. Not long enough to make a career of
+# it.
+SEEKER_CAMP_SECONDS = 5
+
 # Being moved is the one time the server relocates a player who is
 # otherwise free to move. Their client has position updates in flight
 # that still claim the old spot, and accepting one would quietly undo the

@@ -8,6 +8,7 @@ the same tile.
 
 import json
 import os
+import random
 
 import config
 
@@ -184,6 +185,87 @@ def hiding_places(name):
         (spot["x"] + spot["w"] / 2 - half, spot["y"] + spot["h"] / 2 - half)
         for spot in hiding_spots(name)
     ]
+
+
+# ---------------------------------------------------------------------------
+# Rooms
+# ---------------------------------------------------------------------------
+
+def rooms_of(name):
+    """The rooms of a map: the walkable interiors, not counting walls."""
+    return _rects(name, "rooms")
+
+
+def in_rect(rect, cx, cy):
+    """Is this point inside a rectangle?"""
+    return (rect["x"] <= cx <= rect["x"] + rect["w"]
+            and rect["y"] <= cy <= rect["y"] + rect["h"])
+
+
+def room_at(name, cx, cy):
+    """The room containing a point, or None if it is in a wall or doorway."""
+    for room in rooms_of(name):
+        if in_rect(room, cx, cy):
+            return room
+    return None
+
+
+def base_room(name):
+    """The room the home base sits in, or None.
+
+    What the seeker is not allowed to loiter in. The base itself is a
+    small square and standing beside it is as good as standing on it, so
+    the rule that matters is about the *room*.
+    """
+    return room_at(name, *base_center(name))
+
+
+def _solid_furniture(name):
+    return [item for item in _rects(name, "furniture") if item.get("solid")]
+
+
+def random_standing_spot(name, avoid=None, attempts=80):
+    """A random top-left corner somewhere a player can stand.
+
+    Used to move a seeker on when they will not leave the base room
+    alone. Random rather than a fixed penalty spot, because a penalty you
+    can predict is one you can plan around — being flung somewhere and
+    having to work out where you are is the point.
+
+    Rooms are interiors, so anywhere inside one with a player's width of
+    margin is clear of the walls; only the solid furniture has to be
+    checked. Falls back to a spawn point if a map is so cluttered that
+    eighty tries find nothing, since a seeker left standing where they
+    were is worse than one moved somewhere dull.
+    """
+    size = config.PLAYER_SIZE
+    choices = [
+        room for room in rooms_of(name)
+        if room is not avoid
+        and room["w"] > size * 3 and room["h"] > size * 3
+    ]
+    if not choices:
+        return spawn_point(name, 0)
+
+    blocked = _solid_furniture(name)
+
+    for _ in range(attempts):
+        room = random.choice(choices)
+        x = random.uniform(room["x"] + size, room["x"] + room["w"] - size * 2)
+        y = random.uniform(room["y"] + size, room["y"] + room["h"] - size * 2)
+
+        box = {"x": x, "y": y, "w": size, "h": size}
+        if any(_overlaps(box, item) for item in blocked):
+            continue
+
+        return x, y
+
+    return spawn_point(name, 0)
+
+
+def _overlaps(a, b):
+    return (a["x"] < b["x"] + b["w"] and a["x"] + a["w"] > b["x"]
+            and a["y"] < b["y"] + b["h"] and a["y"] + a["h"] > b["y"])
 
 
 def in_base(name, cx, cy):

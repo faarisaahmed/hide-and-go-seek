@@ -26,6 +26,7 @@ import {
     REMOTE_SNAP_DISTANCE,
 } from "./config.js";
 import { applyState } from "./round.js";
+import { noteRelocation } from "./relocation.js";
 import { noteShout, playOwnShout } from "./shouts.js";
 
 /* Remote players we can currently see, keyed by their socket id. */
@@ -99,11 +100,15 @@ export function join({ code, name, localPlayer }) {
         // nobody within a hundred feet to hear it.
         socket.on("shout_made", playOwnShout);
 
-        // Sent when a new round puts us back on the base, and as a
-        // correction if we tried to move while counting or frozen.
+        // Sent when a new round puts us back on the base, as a
+        // correction if we tried to move while counting or frozen, and
+        // when the round has picked us up and put us down somewhere
+        // else. The last of those carries a reason: being suddenly in
+        // the cellar with no explanation reads as a bug.
         socket.on("position_correction", (data) => {
             localPlayer.x = data.x;
             localPlayer.y = data.y;
+            if (data.reason) noteRelocation(data.reason);
         });
 
         socket.emit("join_game", { code, name });

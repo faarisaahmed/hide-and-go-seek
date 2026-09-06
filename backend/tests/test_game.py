@@ -58,8 +58,11 @@ def hunting(clock, *names):
     assert game.state(code)["phase"] == "hunting"
 
     # Everyone started on the base, so everyone was just relocated and is
-    # briefly pinned. Step past that, as a real second of play would.
+    # briefly pinned. Step past that, as a real second of play would, and
+    # drain the list of people waiting to be told where they now are, so
+    # a test watching for its own relocation is not handed these.
     clock(config.RELOCATE_PIN_SECONDS + 0.1)
+    game.take_relocated(code)
     return code
 
 
@@ -452,7 +455,10 @@ def test_relocated_hiders_are_handed_over_to_be_told_where_they_are(clock):
     assert "moved" in game.resolve(code, force=True)
 
     moved = game.take_relocated(code)
-    assert [p["name"] for p in moved] == [cast(code)[1][0]["name"]]
+    assert [p["name"] for p, _ in moved] == [cast(code)[1][0]["name"]]
+    # And with the reason, so their client can say why the floor moved
+    # rather than leaving them to work it out.
+    assert [why for _, why in moved] == ["crowding"]
     # Draining is one-shot, or the same correction goes out every tick.
     assert game.take_relocated(code) == []
 
@@ -494,6 +500,149 @@ def test_the_seeker_is_not_moved_off_the_base(clock):
     game.resolve(code, force=True)
 
     assert (seeker["x"], seeker["y"]) == before
+
+
+# ---------------------------------------------------------------------------
+# The seeker cannot camp the base's room either
+# ---------------------------------------------------------------------------
+#
+# They already cannot stand on the base. Standing beside it is nearly as
+# good, so the room it is in has a clock on it.
+
+HALL = maps.base_room(config.DEFAULT_MAP)
+
+
+def far_corner():
+    """A point in the house well away from the hall."""
+    return 300, 300
+
+
+def test_a_seeker_loitering_in_the_base_room_is_moved_on(clock):
+    code = hunting(clock, "Alice", "Bob")
+    seeker, hiders = cast(code)
+
+    put(hiders[0], *far_corner())
+    put(seeker, *BASE)                          # in the hall, beside home
+    game.resolve(code, force=True)
+
+    clock(config.SEEKER_CAMP_SECONDS + 0.1)
+    game.resolve(code, force=True)
+
+    assert not maps.in_rect(HALL, *game._center(seeker)), \
+        "still standing in the hall"
+
+
+def test_walking_through_the_base_room_is_fine(clock):
+    """Crossing it, giving chase, tagging somebody making a run for the
+    door — all of that has to keep working."""
+    code = hunting(clock, "Alice", "Bob")
+    seeker, hiders = cast(code)
+
+    put(hiders[0], *far_corner())
+    put(seeker, *BASE)
+    game.resolve(code, force=True)
+
+    clock(config.SEEKER_CAMP_SECONDS - 1)
+    game.resolve(code, force=True)
+    assert maps.in_rect(HALL, *game._center(seeker)), "moved on too early"
+
+
+def test_stepping_out_of_the_room_starts_the_clock_again(clock):
+    code = hunting(clock, "Alice", "Bob")
+    seeker, hiders = cast(code)
+
+    put(hiders[0], *far_corner())
+    put(seeker, *BASE)
+    game.resolve(code, force=True)
+
+    clock(config.SEEKER_CAMP_SECONDS - 0.5)
+    put(seeker, *far_corner())                  # out of the hall
+    game.resolve(code, force=True)
+    assert seeker["camping_since"] is None
+
+    put(seeker, *BASE)                          # and back in
+    game.resolve(code, force=True)
+    clock(config.SEEKER_CAMP_SECONDS - 0.5)
+    game.resolve(code, force=True)
+
+    assert maps.in_rect(HALL, *game._center(seeker)), \
+        "the clock should have restarted when they left"
+
+
+def test_hiders_may_stand_in_the_base_room_as_long_as_they_like(clock):
+    """It is their room. The rule is about the seeker."""
+    code = hunting(clock, "Alice", "Bob", "Carol")
+    seeker, hiders = cast(code)
+
+    put(seeker, *far_corner())
+    lurker = hiders[0]
+    put(lurker, BASE[0] + 200, BASE[1])         # in the hall, off the base
+    put(hiders[1], 2200, 1400)
+    where = (lurker["x"], lurker["y"])
+
+    clock(config.SEEKER_CAMP_SECONDS * 3)
+    game.resolve(code, force=True)
+
+    assert (lurker["x"], lurker["y"]) == where
+
+
+def test_an_evicted_seeker_is_pinned_and_handed_over(clock):
+    """Their client has updates in flight claiming the old spot, and it
+    has to be told where it now is — with the reason, or being suddenly
+    in the cellar reads as a bug."""
+    code = hunting(clock, "Alice", "Bob")
+    seeker, hiders = cast(code)
+
+    put(hiders[0], *far_corner())
+    put(seeker, *BASE)
+    game.resolve(code, force=True)
+
+    clock(config.SEEKER_CAMP_SECONDS + 0.1)
+    assert "moved" in game.resolve(code, force=True)
+
+    moved = game.take_relocated(code)
+    assert [(p["name"], why) for p, why in moved] == [(seeker["name"], "camped")]
+    assert not game.can_move(rooms.get(code), seeker), "not pinned"
+
+
+def test_nobody_is_moved_on_in_a_mode_with_nothing_to_camp(clock):
+    """Sardines has no base worth guarding, so there is nothing to guard
+    it against."""
+    code = make_room("Alice", "Bob")
+    rooms.set_mode(code, "sardines")
+    game.start(code)
+    game.resolve(code, force=True)
+    clock(config.COUNTDOWN_SECONDS + 1)
+    game.resolve(code, force=True)
+    clock(config.RELOCATE_PIN_SECONDS + 0.1)
+
+    room = rooms.get(code)
+    seeker = next(p for p in room["players"].values() if p["role"] == "tagger")
+    put(seeker, *BASE)
+    where = (seeker["x"], seeker["y"])
+
+    clock(config.SEEKER_CAMP_SECONDS * 3)
+    game.resolve(code, force=True)
+
+    assert (seeker["x"], seeker["y"]) == where
+
+
+def test_an_evicted_seeker_lands_somewhere_they_can_stand(clock):
+    """Run a few, since where they land is deliberately random."""
+    for _ in range(15):
+        rooms.reset()
+        code = hunting(clock, "Alice", "Bob")
+        seeker, hiders = cast(code)
+
+        put(hiders[0], *far_corner())
+        put(seeker, *BASE)
+        game.resolve(code, force=True)
+        clock(config.SEEKER_CAMP_SECONDS + 0.1)
+        game.resolve(code, force=True)
+
+        cx, cy = game._center(seeker)
+        assert maps.room_at(config.DEFAULT_MAP, cx, cy), "landed in a wall"
+        assert not maps.in_rect(HALL, cx, cy), "landed back in the hall"
 
 
 # ---------------------------------------------------------------------------

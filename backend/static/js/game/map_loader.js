@@ -58,6 +58,16 @@ function prepare(map) {
         ? { x: base.x + base.w / 2, y: base.y + base.h / 2 }
         : { x: map.width / 2, y: map.height / 2 };
 
+    // The room the base sits in, which the seeker is on a clock inside.
+    // Worked out the same way the server does it (maps.base_room), so
+    // the countdown the HUD shows is counting the same room down.
+    map.baseRoom = map.rooms.find(
+        (room) => map.baseCenter.x >= room.x
+            && map.baseCenter.x <= room.x + room.w
+            && map.baseCenter.y >= room.y
+            && map.baseCenter.y <= room.y + room.h,
+    ) ?? null;
+
     return map;
 }
 

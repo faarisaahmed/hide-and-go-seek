@@ -35,6 +35,14 @@ middle of the house.
    the seeker cannot set foot on it at all — it is a wall to them. Step
    off and you are fair game again: safety is a place, not a prize you
    keep.
+   The *room* the base is in is on a clock too: a seeker who stays in it
+   past `SEEKER_CAMP_SECONDS` gets picked up and dropped somewhere else
+   in the house at random. Standing beside home is nearly as good as
+   standing on it, and a seeker parked in the doorway turns the end of a
+   round into a staring contest. Walking through, giving chase and
+   tagging someone making a run for the door all stay fine — the HUD
+   counts the seconds down in front of them, so the move never arrives
+   out of a clear blue sky.
 6. **Hiders win** by getting every one of themselves onto the base at
    once. **The seeker wins** by freezing everyone, or by running out the
    clock. Those three are the *only* ways a round ends: one hider home

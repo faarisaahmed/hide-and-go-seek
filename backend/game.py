@@ -235,6 +235,7 @@ def start(code):
             player["role"] = "tagger" if odd_one_out else "hider"
         player["state"] = "free"
         player["pinned_until"] = None
+        player["camping_since"] = None
         # Back to the base, whatever happened last round.
         player["x"], player["y"] = maps.spawn_point(game["map"], index)
 
@@ -272,6 +273,7 @@ def reset(code):
         player["role"] = None
         player["state"] = "free"
         player["pinned_until"] = None
+        player["camping_since"] = None
 
 
 # ---------------------------------------------------------------------------
@@ -517,10 +519,14 @@ def resolve(code, force=False):
 
 
 def take_relocated(code):
-    """Players the round has moved, clearing the list as it hands them over.
+    """``(player, reason)`` for everyone the round has just picked up and
+    put down somewhere else, clearing the list as it hands them over.
 
     They have to be told where they now are, or their client carries on
-    drawing them — and reporting them — somewhere else entirely.
+    drawing them — and reporting them — somewhere else entirely. The
+    reason rides along so the client can say *why* the floor moved:
+    ``"crowding"`` for a hider who never left the base, ``"camped"`` for
+    a seeker who would not leave its room.
     """
     room = rooms.get(code)
     if room is None:
@@ -582,7 +588,7 @@ def _clear_the_base(room, game, now):
 
         hider["x"], hider["y"] = spot
         hider["pinned_until"] = now + config.RELOCATE_PIN_SECONDS
-        game["relocated"].append(hider)
+        game["relocated"].append((hider, "crowding"))
 
 
 def _hunt(room, game, now):
@@ -603,11 +609,60 @@ def _hunt(room, game, now):
         return {"players"}
 
     changes = _contacts(room, game, rules)
+    changes |= _evict_campers(room, game, rules, now)
 
     if rules["rescues"]:
         changes |= _rescues(_hiders(room))
 
     changes |= _outcome(room, game, rules, now)
+    return changes
+
+
+def _evict_campers(room, game, rules, now):
+    """Move a seeker on if they will not leave the base's room alone.
+
+    They already cannot stand on the base. Standing next to it is nearly
+    as good — the last hider has to cross that room to get home, so a
+    seeker who parks in the doorway turns the end of a round into a
+    staring contest that only the clock can settle.
+
+    So the room has a timer on it. Walk through, give chase, tag somebody
+    making a run for the door: all fine. Set up camp and the house puts
+    you somewhere else, chosen at random, because a penalty you can
+    predict is one you can plan around.
+    """
+    if not rules["home_is_safety"]:
+        return set()
+
+    home_room = maps.base_room(game["map"])
+    if home_room is None:
+        return set()
+
+    changes = set()
+
+    for tagger in _taggers(room):
+        if not maps.in_rect(home_room, *_center(tagger)):
+            # Out of the room, so the next visit starts from scratch.
+            tagger["camping_since"] = None
+            continue
+
+        if tagger["camping_since"] is None:
+            tagger["camping_since"] = now
+            continue
+
+        if now - tagger["camping_since"] < config.SEEKER_CAMP_SECONDS:
+            continue
+
+        tagger["x"], tagger["y"] = maps.random_standing_spot(
+            game["map"], avoid=home_room)
+        # Same reason as a relocated hider: their client has updates in
+        # flight claiming the old spot, and accepting one would put them
+        # straight back beside the base.
+        tagger["pinned_until"] = now + config.RELOCATE_PIN_SECONDS
+        tagger["camping_since"] = None
+        game["relocated"].append((tagger, "camped"))
+        changes.add("players")
+
     return changes
 
 
